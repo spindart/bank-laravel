@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Wallet extends Model
@@ -11,8 +12,7 @@ class Wallet extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name',
-        'currency',
+        'user_id',
         'balance',
     ];
 
@@ -20,9 +20,18 @@ class Wallet extends Model
         'balance' => 'decimal:2',
     ];
 
-    public function transactions(): HasMany
+    public function user(): BelongsTo
     {
-        return $this->hasMany(Transaction::class);
+        return $this->belongsTo(User::class);
+    }
+
+    public function sentTransactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class, 'sender_wallet_id');
+    }
+
+    public function receivedTransactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class, 'receiver_wallet_id');
     }
 }
-
