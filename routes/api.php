@@ -11,12 +11,10 @@ Route::prefix('v1')->group(function (): void {
 
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('logout', [AuthController::class, 'logout']);
-
-        Route::apiResource('wallets', WalletController::class);
-
-        Route::get('wallets/{wallet}/transactions', [TransactionController::class, 'indexByWallet']);
-        Route::post('wallets/{wallet}/transactions', [TransactionController::class, 'store']);
-
-        Route::apiResource('transactions', TransactionController::class)->except(['index', 'store']);
+        Route::get('wallet', [WalletController::class, 'show']);
+        Route::post('deposit', [WalletController::class, 'deposit']);
+        Route::post('transfer', [WalletController::class, 'transfer']);
+        Route::post('reverse/{transactionId}', [TransactionController::class, 'reverse']);
+        Route::get('transactions', [TransactionController::class, 'index']);
     });
 });

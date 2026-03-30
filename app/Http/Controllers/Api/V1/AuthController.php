@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
+use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -24,14 +25,10 @@ class AuthController extends Controller
 
         $token = $user->createToken('api-token')->plainTextToken;
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Usuario registrado com sucesso.',
-            'data' => [
-                'user' => $user,
-                'token' => $token,
-            ],
-        ], 201);
+        return ApiResponse::success([
+            'user' => $user,
+            'token' => $token,
+        ], 'Usuario registrado com sucesso.', 201);
     }
 
     public function login(LoginRequest $request): JsonResponse
@@ -46,25 +43,16 @@ class AuthController extends Controller
 
         $token = $user->createToken('api-token')->plainTextToken;
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Login realizado com sucesso.',
-            'data' => [
-                'user' => $user,
-                'token' => $token,
-            ],
-        ]);
+        return ApiResponse::success([
+            'user' => $user,
+            'token' => $token,
+        ], 'Login realizado com sucesso.');
     }
 
     public function logout(): JsonResponse
     {
         auth()->user()?->currentAccessToken()?->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Logout realizado com sucesso.',
-            'data' => null,
-        ]);
+        return ApiResponse::success(null, 'Logout realizado com sucesso.');
     }
 }
-

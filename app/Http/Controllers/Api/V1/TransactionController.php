@@ -3,55 +3,37 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreTransactionRequest;
-use App\Http\Requests\UpdateTransactionRequest;
 use App\Models\Transaction;
-use App\Models\Wallet;
-use App\Services\TransactionService;
+use App\Services\WalletService;
+use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class TransactionController extends Controller
 {
     public function __construct(
-        private readonly TransactionService $transactionService
+        private readonly WalletService $walletService
     ) {
     }
 
-    public function indexByWallet(Request $request, Wallet $wallet): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $transactions = $this->transactionService->paginateByWallet(
-            $wallet,
-            (int) $request->integer('per_page', 15)
-        );
+        $wallet = $this->walletService->getUserWallet($request->user());
 
-        return response()->json($transactions);
+        $transactions = Transaction::query()
+            ->where('sender_wallet_id', $wallet->id)
+            ->orWhere('receiver_wallet_id', $wallet->id)
+            ->orderByDesc('id')
+            ->get();
+
+        return ApiResponse::success($transactions, 'Historico carregado com sucesso.');
     }
 
-    public function store(StoreTransactionRequest $request, Wallet $wallet): JsonResponse
+    public function reverse(Request $request, int $transactionId): JsonResponse
     {
-        $transaction = $this->transactionService->create($wallet, $request->validated());
+        $transaction = $this->walletService->reverse($request->user(), $transactionId);
 
-        return response()->json($transaction, 201);
-    }
-
-    public function show(Transaction $transaction): JsonResponse
-    {
-        return response()->json($transaction);
-    }
-
-    public function update(UpdateTransactionRequest $request, Transaction $transaction): JsonResponse
-    {
-        $updatedTransaction = $this->transactionService->update($transaction, $request->validated());
-
-        return response()->json($updatedTransaction);
-    }
-
-    public function destroy(Transaction $transaction): JsonResponse
-    {
-        $this->transactionService->delete($transaction);
-
-        return response()->json(status: 204);
+        return ApiResponse::success($transaction, 'Transacao revertida com sucesso.');
     }
 }
 

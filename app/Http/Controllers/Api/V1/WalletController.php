@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreWalletRequest;
-use App\Http\Requests\UpdateWalletRequest;
-use App\Models\Wallet;
+use App\Http\Requests\DepositRequest;
+use App\Http\Requests\TransferRequest;
 use App\Services\WalletService;
+use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -17,37 +17,32 @@ class WalletController extends Controller
     ) {
     }
 
-    public function index(Request $request): JsonResponse
+    public function show(Request $request): JsonResponse
     {
-        $wallets = $this->walletService->paginate((int) $request->integer('per_page', 15));
+        $wallet = $this->walletService->getUserWallet($request->user());
 
-        return response()->json($wallets);
+        return ApiResponse::success($wallet, 'Carteira carregada com sucesso.');
     }
 
-    public function store(StoreWalletRequest $request): JsonResponse
+    public function deposit(DepositRequest $request): JsonResponse
     {
-        $wallet = $this->walletService->create($request->validated());
+        $transaction = $this->walletService->deposit(
+            $request->user(),
+            (float) $request->validated('amount')
+        );
 
-        return response()->json($wallet, 201);
+        return ApiResponse::success($transaction, 'Deposito realizado com sucesso.');
     }
 
-    public function show(Wallet $wallet): JsonResponse
+    public function transfer(TransferRequest $request): JsonResponse
     {
-        return response()->json($wallet);
-    }
+        $transaction = $this->walletService->transfer(
+            $request->user(),
+            (int) $request->validated('receiver_user_id'),
+            (float) $request->validated('amount')
+        );
 
-    public function update(UpdateWalletRequest $request, Wallet $wallet): JsonResponse
-    {
-        $updatedWallet = $this->walletService->update($wallet, $request->validated());
-
-        return response()->json($updatedWallet);
-    }
-
-    public function destroy(Wallet $wallet): JsonResponse
-    {
-        $this->walletService->delete($wallet);
-
-        return response()->json(status: 204);
+        return ApiResponse::success($transaction, 'Transferencia realizada com sucesso.');
     }
 }
 
