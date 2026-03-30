@@ -41,7 +41,7 @@ class WalletService
                 $wallet->balance = (float) $wallet->balance + $amount;
                 $this->walletRepository->save($wallet);
 
-                return $this->transactionRepository->create([
+                $transaction = $this->transactionRepository->create([
                     'type' => 'deposit',
                     'amount' => $amount,
                     'sender_wallet_id' => null,
@@ -49,6 +49,15 @@ class WalletService
                     'status' => 'completed',
                     'original_transaction_id' => null,
                 ]);
+
+                Log::info('wallet.deposit_completed', [
+                    'user_id' => $user->id,
+                    'wallet_id' => $wallet->id,
+                    'amount' => $amount,
+                    'transaction_id' => $transaction->id,
+                ]);
+
+                return $transaction;
             });
         } catch (Throwable $exception) {
             Log::error('wallet.deposit_failed', [
@@ -78,7 +87,7 @@ class WalletService
                 $this->walletRepository->save($senderWallet);
                 $this->walletRepository->save($receiverWallet);
 
-                return $this->transactionRepository->create([
+                $transaction = $this->transactionRepository->create([
                     'type' => 'transfer',
                     'amount' => $amount,
                     'sender_wallet_id' => $senderWallet->id,
@@ -86,6 +95,17 @@ class WalletService
                     'status' => 'completed',
                     'original_transaction_id' => null,
                 ]);
+
+                Log::info('wallet.transfer_completed', [
+                    'sender_user_id' => $senderUser->id,
+                    'receiver_user_id' => $receiverUserId,
+                    'sender_wallet_id' => $senderWallet->id,
+                    'receiver_wallet_id' => $receiverWallet->id,
+                    'amount' => $amount,
+                    'transaction_id' => $transaction->id,
+                ]);
+
+                return $transaction;
             });
         } catch (Throwable $exception) {
             Log::error('wallet.transfer_failed', [
