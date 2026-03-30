@@ -1,434 +1,278 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carteira Financeira</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dashboard | Carteira</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        :root {
-            --bg: linear-gradient(135deg, #f4f7fb 0%, #e9eef8 100%);
-            --card: #ffffff;
-            --text: #1f2a37;
-            --muted: #6b7280;
-            --primary: #0f766e;
-            --primary-strong: #115e59;
-            --danger: #b91c1c;
-            --ok: #065f46;
-            --border: #d1d5db;
-        }
-
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-            color: var(--text);
-            background: var(--bg);
-            min-height: 100vh;
-        }
-
-        .container {
-            max-width: 980px;
-            margin: 0 auto;
-            padding: 24px;
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .title {
-            margin: 0;
-            font-size: 28px;
-            font-weight: 700;
-        }
-
-        .card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 16px;
-            box-shadow: 0 8px 28px rgba(2, 6, 23, 0.08);
-            margin-bottom: 14px;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 14px;
-        }
-
-        .hidden { display: none; }
-
-        label {
-            display: block;
-            font-size: 13px;
-            color: var(--muted);
-            margin-bottom: 6px;
-        }
-
-        input {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            margin-bottom: 12px;
-            font-size: 14px;
-        }
-
-        button {
-            border: 0;
-            border-radius: 8px;
-            padding: 10px 14px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .btn-primary { background: var(--primary); color: #fff; }
-        .btn-primary:hover { background: var(--primary-strong); }
-        .btn-danger { background: #fee2e2; color: var(--danger); }
-
-        .feedback {
-            border-radius: 8px;
-            padding: 10px 12px;
-            margin-bottom: 12px;
-            font-size: 14px;
-        }
-
-        .feedback.error { background: #fee2e2; color: var(--danger); }
-        .feedback.success { background: #dcfce7; color: var(--ok); }
-
-        .wallet-balance {
-            font-size: 34px;
-            font-weight: 700;
-            margin: 4px 0 0;
-        }
-
-        .muted { color: var(--muted); font-size: 13px; }
-
-        .history-item {
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 10px;
-            margin-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .history-type {
-            font-weight: 700;
-            text-transform: uppercase;
-            font-size: 12px;
-            color: var(--primary);
-        }
-
-        .loader {
-            position: fixed;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.24);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            color: #fff;
-            backdrop-filter: blur(2px);
-        }
-
-        @media (max-width: 768px) {
-            .grid { grid-template-columns: 1fr; }
-            .title { font-size: 22px; }
-        }
+        body { background: #f4f6fb; }
+        .app-card { border: 0; border-radius: 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+        .money { font-size: 2.1rem; font-weight: 700; }
     </style>
 </head>
 <body>
-<div id="loader" class="loader hidden">Carregando...</div>
-<div class="container">
-    <div class="header">
-        <h1 class="title">Sistema de Carteira Financeira</h1>
-        <button id="logoutBtn" class="btn-danger hidden">Sair</button>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Dashboard da Carteira</h1>
+        <button id="btnLogout" class="btn btn-outline-danger">Sair</button>
     </div>
 
-    <div id="feedback" class="feedback hidden"></div>
+    <div id="alertBox" class="alert d-none" role="alert"></div>
 
-    <div id="authView" class="grid">
-        <div class="card">
-            <h2>Login</h2>
-            <label for="loginEmail">Email</label>
-            <input id="loginEmail" type="email" placeholder="voce@email.com">
-            <label for="loginPassword">Senha</label>
-            <input id="loginPassword" type="password" placeholder="********">
-            <button id="loginBtn" class="btn-primary">Entrar</button>
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <div class="card app-card">
+                <div class="card-body">
+                    <div class="text-muted">Saldo atual</div>
+                    <div id="walletBalance" class="money">R$ 0,00</div>
+                    <div class="mt-2">
+                        <span class="badge text-bg-dark fs-6 px-3 py-2">Seu ID de usuário: <span id="currentUserId">-</span></span>
+                    </div>
+                </div>
+            </div>
         </div>
-
-        <div class="card">
-            <h2>Registro</h2>
-            <label for="registerName">Nome</label>
-            <input id="registerName" type="text" placeholder="Seu nome">
-            <label for="registerEmail">Email</label>
-            <input id="registerEmail" type="email" placeholder="voce@email.com">
-            <label for="registerPassword">Senha</label>
-            <input id="registerPassword" type="password" placeholder="Minimo 8 caracteres">
-            <label for="registerPasswordConfirmation">Confirmar senha</label>
-            <input id="registerPasswordConfirmation" type="password" placeholder="Repita a senha">
-            <button id="registerBtn" class="btn-primary">Criar conta</button>
+        <div class="col-md-4">
+            <div class="card app-card">
+                <div class="card-body">
+                    <h3 class="h6 mb-3">Depositar</h3>
+                    <div class="input-group mb-2">
+                        <span class="input-group-text">R$</span>
+                        <input id="depositAmount" type="number" step="0.01" min="0.01" class="form-control" placeholder="0.00">
+                    </div>
+                    <button id="btnDeposit" class="btn btn-primary w-100">Depositar</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card app-card">
+                <div class="card-body">
+                    <h3 class="h6 mb-3">Transferir</h3>
+                    <input id="transferReceiver" type="number" min="1" class="form-control mb-2" placeholder="ID do usuario destino">
+                    <div class="input-group mb-2">
+                        <span class="input-group-text">R$</span>
+                        <input id="transferAmount" type="number" step="0.01" min="0.01" class="form-control" placeholder="0.00">
+                    </div>
+                    <button id="btnTransfer" class="btn btn-warning w-100">Transferir</button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div id="dashboardView" class="hidden">
-        <div class="card">
-            <div class="muted">Saldo atual</div>
-            <p class="wallet-balance" id="walletBalance">R$ 0,00</p>
-        </div>
-
-        <div class="grid">
-            <div class="card">
-                <h3>Deposito</h3>
-                <label for="depositAmount">Valor</label>
-                <input id="depositAmount" type="number" step="0.01" min="0.01" placeholder="0.00">
-                <button id="depositBtn" class="btn-primary">Depositar</button>
+    <div class="card app-card">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="h5 mb-0">Historico de transacoes</h3>
+                <button id="btnRefresh" class="btn btn-sm btn-outline-secondary">Atualizar</button>
             </div>
-
-            <div class="card">
-                <h3>Transferencia</h3>
-                <label for="transferReceiver">ID do usuario destino</label>
-                <input id="transferReceiver" type="number" min="1" placeholder="2">
-                <label for="transferAmount">Valor</label>
-                <input id="transferAmount" type="number" step="0.01" min="0.01" placeholder="0.00">
-                <button id="transferBtn" class="btn-primary">Transferir</button>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Tipo</th>
+                        <th>Status</th>
+                        <th>Valor</th>
+                        <th>Sender</th>
+                        <th>Receiver</th>
+                        <th>Criada em</th>
+                        <th>Acoes</th>
+                    </tr>
+                    </thead>
+                    <tbody id="txTableBody">
+                    <tr><td colspan="8" class="text-center text-muted">Sem transacoes.</td></tr>
+                    </tbody>
+                </table>
             </div>
-        </div>
-
-        <div class="card">
-            <h3>Historico de transacoes</h3>
-            <div id="historyList"></div>
         </div>
     </div>
 </div>
 
+<div id="globalSpinner" class="position-fixed top-0 start-0 w-100 h-100 d-none align-items-center justify-content-center" style="background: rgba(0,0,0,.25); z-index: 1055;">
+    <div class="spinner-border text-light" role="status"></div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
     const API_BASE = `${window.location.origin}/api/v1`;
-    const TOKEN_KEY = 'auth_token';
-    const loader = document.getElementById('loader');
-    const feedback = document.getElementById('feedback');
-    const authView = document.getElementById('authView');
-    const dashboardView = document.getElementById('dashboardView');
-    const logoutBtn = document.getElementById('logoutBtn');
-    const walletBalance = document.getElementById('walletBalance');
-    const historyList = document.getElementById('historyList');
+    const TOKEN_KEY = 'wallet_token';
 
-    function showLoader(show) {
-        loader.classList.toggle('hidden', !show);
+    function showLoading(show) {
+        $('#globalSpinner').toggleClass('d-none', !show).toggleClass('d-flex', show);
     }
 
-    function showFeedback(message, type = 'success') {
-        feedback.textContent = message;
-        feedback.className = `feedback ${type}`;
-        feedback.classList.remove('hidden');
+    function showAlert(type, message) {
+        const box = $('#alertBox');
+        box.removeClass('d-none alert-success alert-danger alert-warning')
+            .addClass(`alert-${type}`)
+            .text(message);
     }
 
-    function hideFeedback() {
-        feedback.classList.add('hidden');
+    function hideAlert() {
+        $('#alertBox').addClass('d-none');
     }
 
-    function getToken() {
+    function formatMoney(value) {
+        const n = Number(value || 0);
+        return `R$ ${n.toFixed(2).replace('.', ',')}`;
+    }
+
+    function token() {
         return localStorage.getItem(TOKEN_KEY);
-    }
-
-    function setToken(token) {
-        localStorage.setItem(TOKEN_KEY, token);
     }
 
     function clearToken() {
         localStorage.removeItem(TOKEN_KEY);
     }
 
-    async function apiFetch(path, options = {}) {
-        const token = getToken();
-        const headers = {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            ...(options.headers || {})
-        };
-        if (token) {
-            headers.Authorization = `Bearer ${token}`;
+    function parseError(xhr) {
+        const res = xhr.responseJSON;
+        if (!res) return 'Erro inesperado.';
+        if (res.errors && typeof res.errors === 'object') {
+            const firstKey = Object.keys(res.errors)[0];
+            if (firstKey && Array.isArray(res.errors[firstKey])) return res.errors[firstKey][0];
         }
+        return res.message || 'Erro inesperado.';
+    }
 
-        const response = await fetch(`${API_BASE}${path}`, {
-            ...options,
-            headers
+    function apiRequest(method, endpoint, data = null) {
+        return $.ajax({
+            url: `${API_BASE}${endpoint}`,
+            method,
+            contentType: 'application/json',
+            data: data ? JSON.stringify(data) : null,
+            headers: { Authorization: `Bearer ${token()}` }
         });
-
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok || data.success === false) {
-            throw new Error(data.message || 'Erro na requisicao.');
-        }
-        return data;
-    }
-
-    async function login() {
-        showLoader(true);
-        hideFeedback();
-        try {
-            const response = await apiFetch('/login', {
-                method: 'POST',
-                body: JSON.stringify({
-                    email: document.getElementById('loginEmail').value,
-                    password: document.getElementById('loginPassword').value
-                })
-            });
-            setToken(response.data.token);
-            showFeedback('Login realizado com sucesso.');
-            await loadDashboard();
-        } catch (error) {
-            showFeedback(error.message, 'error');
-        } finally {
-            showLoader(false);
-        }
-    }
-
-    async function register() {
-        showLoader(true);
-        hideFeedback();
-        try {
-            const response = await apiFetch('/register', {
-                method: 'POST',
-                body: JSON.stringify({
-                    name: document.getElementById('registerName').value,
-                    email: document.getElementById('registerEmail').value,
-                    password: document.getElementById('registerPassword').value,
-                    password_confirmation: document.getElementById('registerPasswordConfirmation').value
-                })
-            });
-            setToken(response.data.token);
-            showFeedback('Conta criada com sucesso.');
-            await loadDashboard();
-        } catch (error) {
-            showFeedback(error.message, 'error');
-        } finally {
-            showLoader(false);
-        }
-    }
-
-    async function logout() {
-        showLoader(true);
-        try {
-            await apiFetch('/logout', { method: 'POST' });
-        } catch (error) {
-            console.warn(error.message);
-        } finally {
-            clearToken();
-            authView.classList.remove('hidden');
-            dashboardView.classList.add('hidden');
-            logoutBtn.classList.add('hidden');
-            showLoader(false);
-            showFeedback('Sessao encerrada.', 'success');
-        }
     }
 
     async function loadWallet() {
-        const response = await apiFetch('/wallet');
-        walletBalance.textContent = `R$ ${Number(response.data.balance).toFixed(2).replace('.', ',')}`;
+        const res = await apiRequest('GET', '/wallet');
+        $('#walletBalance').text(formatMoney(res.data.balance));
+        $('#currentUserId').text(res.data.user_id ?? '-');
     }
 
-    async function loadHistory() {
-        const response = await apiFetch('/transactions');
-        historyList.innerHTML = '';
-        if (!response.data.length) {
-            historyList.innerHTML = '<p class="muted">Nenhuma transacao encontrada.</p>';
+    async function loadTransactions() {
+        const res = await apiRequest('GET', '/transactions');
+        const tbody = $('#txTableBody');
+        tbody.empty();
+
+        if (!res.data || !res.data.length) {
+            tbody.append('<tr><td colspan="8" class="text-center text-muted">Sem transacoes.</td></tr>');
             return;
         }
 
-        response.data.forEach((item) => {
-            const row = document.createElement('div');
-            row.className = 'history-item';
-            row.innerHTML = `
-                <div>
-                    <div class="history-type">${item.type} - ${item.status}</div>
-                    <div class="muted">ID: ${item.id} | sender: ${item.sender_wallet_id ?? '-'} | receiver: ${item.receiver_wallet_id ?? '-'}</div>
-                </div>
-                <div><strong>R$ ${Number(item.amount).toFixed(2).replace('.', ',')}</strong></div>
-            `;
-            historyList.appendChild(row);
+        res.data.forEach((tx) => {
+            const canReverse = tx.status === 'completed' && (tx.type === 'deposit' || tx.type === 'transfer');
+            const actionBtn = canReverse
+                ? `<button class="btn btn-sm btn-outline-danger btn-reverse" data-id="${tx.id}">Reverter</button>`
+                : '<span class="text-muted">-</span>';
+
+            tbody.append(`
+                <tr>
+                    <td>${tx.id}</td>
+                    <td><span class="badge text-bg-info">${tx.type}</span></td>
+                    <td><span class="badge text-bg-secondary">${tx.status}</span></td>
+                    <td>${formatMoney(tx.amount)}</td>
+                    <td>${tx.sender_wallet_id ?? '-'}</td>
+                    <td>${tx.receiver_wallet_id ?? '-'}</td>
+                    <td>${tx.created_at ?? '-'}</td>
+                    <td>${actionBtn}</td>
+                </tr>
+            `);
         });
     }
 
     async function loadDashboard() {
-        authView.classList.add('hidden');
-        dashboardView.classList.remove('hidden');
-        logoutBtn.classList.remove('hidden');
         await loadWallet();
-        await loadHistory();
+        await loadTransactions();
     }
 
-    async function deposit() {
-        showLoader(true);
-        hideFeedback();
+    async function onLogout() {
+        hideAlert();
+        showLoading(true);
         try {
-            await apiFetch('/deposit', {
-                method: 'POST',
-                body: JSON.stringify({
-                    amount: Number(document.getElementById('depositAmount').value)
-                })
-            });
-            showFeedback('Deposito realizado com sucesso.');
-            document.getElementById('depositAmount').value = '';
-            await loadDashboard();
-        } catch (error) {
-            showFeedback(error.message, 'error');
+            await apiRequest('POST', '/logout');
+        } catch (_) {
         } finally {
-            showLoader(false);
+            clearToken();
+            window.location.href = '/auth';
         }
     }
 
-    async function transfer() {
-        showLoader(true);
-        hideFeedback();
+    async function onDeposit() {
+        hideAlert();
+        showLoading(true);
         try {
-            await apiFetch('/transfer', {
-                method: 'POST',
-                body: JSON.stringify({
-                    receiver_user_id: Number(document.getElementById('transferReceiver').value),
-                    amount: Number(document.getElementById('transferAmount').value)
-                })
+            await apiRequest('POST', '/deposit', {
+                amount: Number($('#depositAmount').val())
             });
-            showFeedback('Transferencia realizada com sucesso.');
-            document.getElementById('transferReceiver').value = '';
-            document.getElementById('transferAmount').value = '';
+            $('#depositAmount').val('');
             await loadDashboard();
-        } catch (error) {
-            showFeedback(error.message, 'error');
+            showAlert('success', 'Deposito realizado com sucesso.');
+        } catch (xhr) {
+            showAlert('danger', parseError(xhr));
         } finally {
-            showLoader(false);
+            showLoading(false);
         }
     }
 
-    document.getElementById('loginBtn').addEventListener('click', login);
-    document.getElementById('registerBtn').addEventListener('click', register);
-    document.getElementById('depositBtn').addEventListener('click', deposit);
-    document.getElementById('transferBtn').addEventListener('click', transfer);
-    logoutBtn.addEventListener('click', logout);
+    async function onTransfer() {
+        hideAlert();
+        showLoading(true);
+        try {
+            await apiRequest('POST', '/transfer', {
+                receiver_user_id: Number($('#transferReceiver').val()),
+                amount: Number($('#transferAmount').val())
+            });
+            $('#transferReceiver').val('');
+            $('#transferAmount').val('');
+            await loadDashboard();
+            showAlert('success', 'Transferencia realizada com sucesso.');
+        } catch (xhr) {
+            showAlert('danger', parseError(xhr));
+        } finally {
+            showLoading(false);
+        }
+    }
 
-    (async function init() {
-        if (!getToken()) {
+    async function onReverse(id) {
+        hideAlert();
+        showLoading(true);
+        try {
+            await apiRequest('POST', `/reverse/${id}`);
+            await loadDashboard();
+            showAlert('success', `Transacao ${id} revertida com sucesso.`);
+        } catch (xhr) {
+            showAlert('danger', parseError(xhr));
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    $(document).ready(async function () {
+        if (!token()) {
+            window.location.href = '/auth';
             return;
         }
 
-        showLoader(true);
+        $('#btnLogout').on('click', onLogout);
+        $('#btnDeposit').on('click', onDeposit);
+        $('#btnTransfer').on('click', onTransfer);
+        $('#btnRefresh').on('click', loadDashboard);
+        $(document).on('click', '.btn-reverse', function () {
+            onReverse($(this).data('id'));
+        });
+
+        showLoading(true);
         try {
             await loadDashboard();
-        } catch (error) {
+        } catch (_) {
             clearToken();
-            authView.classList.remove('hidden');
-            dashboardView.classList.add('hidden');
+            window.location.href = '/auth';
         } finally {
-            showLoader(false);
+            showLoading(false);
         }
-    })();
+    });
 </script>
 </body>
 </html>
-
