@@ -27,12 +27,14 @@ return new class extends Migration
             $table->index('receiver_wallet_id');
         });
 
-        DB::statement('ALTER TABLE transactions ADD CONSTRAINT chk_transactions_amount CHECK (amount > 0)');
-        DB::statement("ALTER TABLE transactions ADD CONSTRAINT chk_transactions_type_wallets CHECK (
-            (type = 'deposit' AND sender_wallet_id IS NULL AND receiver_wallet_id IS NOT NULL AND original_transaction_id IS NULL) OR
-            (type = 'transfer' AND sender_wallet_id IS NOT NULL AND receiver_wallet_id IS NOT NULL AND sender_wallet_id <> receiver_wallet_id AND original_transaction_id IS NULL) OR
-            (type = 'reversal' AND original_transaction_id IS NOT NULL AND (sender_wallet_id IS NOT NULL OR receiver_wallet_id IS NOT NULL))
-        )");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE transactions ADD CONSTRAINT chk_transactions_amount CHECK (amount > 0)');
+            DB::statement("ALTER TABLE transactions ADD CONSTRAINT chk_transactions_type_wallets CHECK (
+                (type = 'deposit' AND sender_wallet_id IS NULL AND receiver_wallet_id IS NOT NULL AND original_transaction_id IS NULL) OR
+                (type = 'transfer' AND sender_wallet_id IS NOT NULL AND receiver_wallet_id IS NOT NULL AND sender_wallet_id <> receiver_wallet_id AND original_transaction_id IS NULL) OR
+                (type = 'reversal' AND original_transaction_id IS NOT NULL AND (sender_wallet_id IS NOT NULL OR receiver_wallet_id IS NOT NULL))
+            )");
+        }
     }
 
     /**
