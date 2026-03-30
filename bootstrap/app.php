@@ -5,6 +5,7 @@ use App\Http\Middleware\RequestLoggingMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
@@ -19,7 +20,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(RequestLoggingMiddleware::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->render(function (ValidationException $exception) {
+        $exceptions->render(function (ValidationException $exception, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erro de validacao.',
@@ -28,7 +33,11 @@ return Application::configure(basePath: dirname(__DIR__))
             ], 422);
         });
 
-        $exceptions->render(function (FinanceException $exception) {
+        $exceptions->render(function (FinanceException $exception, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
             return response()->json([
                 'success' => false,
                 'message' => $exception->getMessage(),
@@ -37,7 +46,11 @@ return Application::configure(basePath: dirname(__DIR__))
             ], $exception->statusCode());
         });
 
-        $exceptions->render(function (UnauthorizedHttpException $exception) {
+        $exceptions->render(function (UnauthorizedHttpException $exception, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
             return response()->json([
                 'success' => false,
                 'message' => 'Nao autenticado.',
@@ -46,7 +59,11 @@ return Application::configure(basePath: dirname(__DIR__))
             ], 401);
         });
 
-        $exceptions->render(function (\Throwable $exception) {
+        $exceptions->render(function (\Throwable $exception, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erro interno do servidor.',
