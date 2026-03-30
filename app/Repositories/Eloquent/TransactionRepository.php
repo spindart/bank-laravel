@@ -4,21 +4,22 @@ namespace App\Repositories\Eloquent;
 
 use App\Models\Transaction;
 use App\Repositories\Contracts\TransactionRepositoryInterface;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class TransactionRepository implements TransactionRepositoryInterface
 {
-    public function paginateByWallet(int $walletId, int $perPage = 15): LengthAwarePaginator
-    {
-        return Transaction::query()
-            ->where('wallet_id', $walletId)
-            ->latest('transaction_date')
-            ->paginate($perPage);
-    }
-
     public function create(array $data): Transaction
     {
         return Transaction::query()->create($data);
+    }
+
+    public function findById(int $id): ?Transaction
+    {
+        return Transaction::query()->find($id);
+    }
+
+    public function lockById(int $id): Transaction
+    {
+        return Transaction::query()->whereKey($id)->lockForUpdate()->firstOrFail();
     }
 
     public function update(Transaction $transaction, array $data): Transaction
@@ -29,9 +30,11 @@ class TransactionRepository implements TransactionRepositoryInterface
         return $transaction->refresh();
     }
 
-    public function delete(Transaction $transaction): void
+    public function findReversalByOriginalId(int $originalTransactionId): ?Transaction
     {
-        $transaction->delete();
+        return Transaction::query()
+            ->where('type', 'reversal')
+            ->where('original_transaction_id', $originalTransactionId)
+            ->first();
     }
 }
-
