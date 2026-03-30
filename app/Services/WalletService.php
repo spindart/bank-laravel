@@ -105,6 +105,20 @@ class WalletService
             return DB::transaction(function () use ($user, $transactionId): Transaction {
                 $targetTransaction = $this->transactionRepository->lockById($transactionId);
 
+                if ($targetTransaction->status === 'reversed') {
+                    $existingReversal = $this->transactionRepository->findReversalByOriginalId($targetTransaction->id);
+
+                    if ($existingReversal) {
+                        Log::info('wallet.reverse_idempotent_reversed_status', [
+                            'user_id' => $user->id,
+                            'transaction_id' => $transactionId,
+                            'reversal_transaction_id' => $existingReversal->id,
+                        ]);
+
+                        return $existingReversal;
+                    }
+                }
+
                 if ($targetTransaction->status !== 'completed') {
                     throw new TransactionNotReversibleException();
                 }
