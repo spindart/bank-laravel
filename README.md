@@ -89,9 +89,9 @@ docker compose exec app php artisan migrate
 
 5. Acesse:
 
-- API: `http://localhost:18080/api/v1`
-- Frontend: `http://localhost:18080`
-- Health check: `http://localhost:18080/up`
+- API: `http://localhost:8080/api/v1`
+- Frontend: `http://localhost:8080`
+- Health check: `http://localhost:8080/up`
 
 ## Fluxo de autenticacao
 
