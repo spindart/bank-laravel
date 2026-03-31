@@ -1,0 +1,159 @@
+:root {
+    --dashboard-primary: #2563eb;
+    --dashboard-success: #16a34a;
+    --dashboard-danger: #dc2626;
+    --dashboard-surface: #ffffff;
+    --dashboard-muted: #6b7280;
+    --dashboard-bg: #eef2ff;
+    --dashboard-border: #e5e7eb;
+}
+
+body.bg-soft {
+    background: #f7f9fc;
+    color: #111827;
+}
+
+.dashboard-card {
+    border: 0;
+    border-radius: 1.6rem;
+    background: var(--dashboard-surface);
+    box-shadow: 0 22px 56px rgba(15, 23, 42, .08);
+    transition: transform .22s ease, box-shadow .22s ease;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 30px 70px rgba(15, 23, 42, .12);
+}
+
+.navbar {
+    min-height: 72px;
+}
+
+.navbar-brand {
+    letter-spacing: .02em;
+}
+
+.btn-action {
+    min-height: 3.6rem;
+    font-weight: 600;
+    border-radius: 1rem;
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.btn-action:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.btn-primary {
+    background-color: var(--dashboard-primary);
+    border-color: var(--dashboard-primary);
+}
+
+.btn-primary:hover {
+    background-color: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+.btn-success {
+    background-color: var(--dashboard-success);
+    border-color: var(--dashboard-success);
+}
+
+.btn-success:hover {
+    background-color: #15803d;
+    border-color: #15803d;
+}
+
+.form-control,
+.input-group-text {
+    border-radius: .9rem;
+}
+
+.form-control {
+    border: 1px solid #d2d6dc;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.form-control:focus {
+    border-color: var(--dashboard-primary);
+    box-shadow: 0 0 0 .25rem rgba(37, 99, 235, .14);
+}
+
+.input-group .input-group-text {
+    border-right: 0;
+    background: #fff;
+    color: #6b7280;
+}
+
+.table-responsive {
+    overflow: auto;
+}
+
+.table thead th {
+    border-bottom: 1px solid #e7ebf0;
+    color: #6b7280;
+    font-size: .89rem;
+}
+
+.table tbody tr {
+    transition: background-color .2s ease;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(37, 99, 235, .04);
+}
+
+.table td,
+.table th {
+    vertical-align: middle;
+    padding: 1rem .85rem;
+}
+
+.badge-type-deposit {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.badge-type-transfer {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+}
+
+.badge-type-reversal {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.badge-status-completed {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.badge-status-reversed {
+    background-color: #fee2e2;
+    color: #b91c1c;
+}
+
+.badge-status-pending {
+    background-color: #e2e8f0;
+    color: #475569;
+}
+
+.alert {
+    border-radius: 1rem;
+}
+
+#alertBox {
+    min-height: 52px;
+}
+
+.table .text-muted {
+    font-size: .95rem;
+}
+
+@media (max-width: 767.98px) {
+    .navbar .text-end {
+        display: none !important;
+    }
+}
