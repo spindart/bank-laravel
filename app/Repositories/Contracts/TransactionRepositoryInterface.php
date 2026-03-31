@@ -9,6 +9,8 @@ interface TransactionRepositoryInterface
 
     public function findById(int $id): ?Transaction;
 
+    public function findByIdempotencyKey(string $idempotencyKey): ?Transaction;
+
     public function lockById(int $id): Transaction;
 
     public function update(Transaction $transaction, array $data): Transaction;

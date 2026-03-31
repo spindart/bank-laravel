@@ -17,6 +17,7 @@ class Transaction extends Model
         'sender_wallet_id',
         'receiver_wallet_id',
         'status',
+        'idempotency_key',
         'original_transaction_id',
     ];
 

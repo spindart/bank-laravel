@@ -52,6 +52,38 @@ class WalletApiTest extends TestCase
         $this->assertDatabaseCount('transactions', 0);
     }
 
+    public function test_transfer_is_idempotent_with_same_key(): void
+    {
+        [$sender, $senderWallet] = $this->createUserWithWallet(120);
+        [$receiver, $receiverWallet] = $this->createUserWithWallet(40);
+        Sanctum::actingAs($sender);
+
+        $idempotencyKey = 'tx-transfer-unique-key';
+
+        $firstResponse = $this->postJson('/api/v1/transfer', [
+            'receiver_user_id' => $receiver->id,
+            'amount' => 30,
+            'idempotency_key' => $idempotencyKey,
+        ])->assertOk();
+
+        $secondResponse = $this->postJson('/api/v1/transfer', [
+            'receiver_user_id' => $receiver->id,
+            'amount' => 30,
+            'idempotency_key' => $idempotencyKey,
+        ])->assertOk();
+
+        $senderWallet->refresh();
+        $receiverWallet->refresh();
+
+        $this->assertSame('90.00', $senderWallet->balance);
+        $this->assertSame('70.00', $receiverWallet->balance);
+        $this->assertSame(
+            $firstResponse->json('data.id'),
+            $secondResponse->json('data.id')
+        );
+        $this->assertDatabaseCount('transactions', 1);
+    }
+
     public function test_reverse_restores_balances_and_is_idempotent(): void
     {
         [$sender, $senderWallet] = $this->createUserWithWallet(100);

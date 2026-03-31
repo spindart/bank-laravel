@@ -46,6 +46,7 @@ Projeto Laravel para carteira financeira com autenticacao, operacoes financeiras
 - sender_wallet_id (nullable)
 - receiver_wallet_id (nullable)
 - status (`pending`, `completed`, `reversed`)
+- idempotency_key (nullable, unique)
 - original_transaction_id (nullable, unique)
 - created_at
 
@@ -55,6 +56,7 @@ Projeto Laravel para carteira financeira com autenticacao, operacoes financeiras
 - Transferencia valida saldo antes de debitar.
 - Nao permite saldo negativo em transferencia.
 - Deposito aumenta saldo imediatamente.
+- Transferencia eh idempotente quando o mesmo `idempotency_key` e enviado.
 - Reversao cria nova transacao `reversal`.
 - Reversao atualiza transacao original para `reversed`.
 - Reversao eh idempotente (repetir chamada nao duplica efeito).
@@ -182,9 +184,12 @@ Request:
 ```json
 {
   "receiver_user_id": 2,
-  "amount": 50.00
+  "amount": 50.00,
+  "idempotency_key": "unique-transfer-key-123"
 }
 ```
+
+A propriedade `idempotency_key` e opcional, mas quando fornecida garante que repeticoes da mesma requisicao retornem a mesma transacao em vez de duplicar o efeito.
 
 ### Reversao
 

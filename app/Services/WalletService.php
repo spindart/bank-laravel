@@ -70,10 +70,18 @@ class WalletService
         }
     }
 
-    public function transfer(User $senderUser, int $receiverUserId, float $amount): Transaction
+    public function transfer(User $senderUser, int $receiverUserId, float $amount, ?string $idempotencyKey = null): Transaction
     {
         try {
-            return DB::transaction(function () use ($senderUser, $receiverUserId, $amount): Transaction {
+            return DB::transaction(function () use ($senderUser, $receiverUserId, $amount, $idempotencyKey): Transaction {
+                if ($idempotencyKey) {
+                    $existingTransaction = $this->transactionRepository->findByIdempotencyKey($idempotencyKey);
+
+                    if ($existingTransaction) {
+                        return $existingTransaction;
+                    }
+                }
+
                 $senderWallet = $this->walletRepository->lockByUserId($senderUser->id);
                 $receiverWallet = $this->walletRepository->lockByUserId($receiverUserId);
 
@@ -93,6 +101,7 @@ class WalletService
                     'sender_wallet_id' => $senderWallet->id,
                     'receiver_wallet_id' => $receiverWallet->id,
                     'status' => 'completed',
+                    'idempotency_key' => $idempotencyKey,
                     'original_transaction_id' => null,
                 ]);
 
@@ -103,6 +112,7 @@ class WalletService
                     'receiver_wallet_id' => $receiverWallet->id,
                     'amount' => $amount,
                     'transaction_id' => $transaction->id,
+                    'idempotency_key' => $idempotencyKey,
                 ]);
 
                 return $transaction;
@@ -112,6 +122,7 @@ class WalletService
                 'sender_user_id' => $senderUser->id,
                 'receiver_user_id' => $receiverUserId,
                 'amount' => $amount,
+                'idempotency_key' => $idempotencyKey,
                 'error' => $exception->getMessage(),
             ]);
 

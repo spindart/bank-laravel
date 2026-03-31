@@ -111,6 +111,17 @@
     const API_BASE = `${window.location.origin}/api/v1`;
     const TOKEN_KEY = 'wallet_token';
     let currentWalletId = null;
+    let currentTransferIdempotencyKey = null;
+
+    function getTransferIdempotencyKey() {
+        if (!currentTransferIdempotencyKey) {
+            currentTransferIdempotencyKey = window.crypto?.randomUUID
+                ? crypto.randomUUID()
+                : `transfer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        }
+
+        return currentTransferIdempotencyKey;
+    }
 
     function showLoading(show) {
         $('#globalSpinner').toggleClass('d-none', !show).toggleClass('d-flex', show);
@@ -315,8 +326,10 @@
         try {
             await apiRequest('POST', '/transfer', {
                 receiver_user_id: Number($('#transferReceiver').val()),
-                amount: Number($('#transferAmount').val())
+                amount: Number($('#transferAmount').val()),
+                idempotency_key: getTransferIdempotencyKey(),
             });
+            currentTransferIdempotencyKey = null;
             $('#transferReceiver').val('');
             $('#transferAmount').val('');
             await loadDashboard();

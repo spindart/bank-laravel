@@ -19,6 +19,7 @@ return new class extends Migration
             $table->foreignId('sender_wallet_id')->nullable()->constrained('wallets');
             $table->foreignId('receiver_wallet_id')->nullable()->constrained('wallets');
             $table->enum('status', ['pending', 'completed', 'reversed'])->default('pending');
+            $table->string('idempotency_key')->nullable()->unique();
             $table->foreignId('original_transaction_id')->nullable()->unique()->constrained('transactions');
             $table->timestamp('created_at')->useCurrent();
 

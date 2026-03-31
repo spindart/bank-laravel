@@ -22,6 +22,7 @@ class TransferRequest extends FormRequest
                 Rule::notIn([$this->user()?->id]),
             ],
             'amount' => ['required', 'numeric', 'gt:0'],
+            'idempotency_key' => ['nullable', 'string', 'max:128'],
         ];
     }
 }

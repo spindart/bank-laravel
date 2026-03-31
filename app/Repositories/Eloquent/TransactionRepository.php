@@ -17,6 +17,13 @@ class TransactionRepository implements TransactionRepositoryInterface
         return Transaction::query()->find($id);
     }
 
+    public function findByIdempotencyKey(string $idempotencyKey): ?Transaction
+    {
+        return Transaction::query()
+            ->where('idempotency_key', $idempotencyKey)
+            ->first();
+    }
+
     public function lockById(int $id): Transaction
     {
         return Transaction::query()->whereKey($id)->lockForUpdate()->firstOrFail();
