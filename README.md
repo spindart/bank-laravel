@@ -1,14 +1,15 @@
 # API de Carteira Financeira (Laravel + Sanctum)
 
-Projeto Laravel para carteira financeira com autenticacao, operacoes financeiras seguras, reversao de transacoes, testes automatizados, observabilidade e frontend em HTML/CSS/JS puro.
+Projeto Laravel para carteira financeira com autenticacao, operacoes financeiras seguras, reversao de transacoes, testes automatizados, observabilidade, processamento assincrono com filas e frontend em HTML/CSS/JS puro.
 
 ## Stack
 
 - PHP 8.3
 - Laravel 13
 - MySQL 8.4
+- Redis 7
 - Laravel Sanctum (token Bearer)
-- Docker (PHP-FPM + Nginx + MySQL)
+- Docker (PHP-FPM + Nginx + MySQL + Redis)
 - PHPUnit
 
 ## Arquitetura
@@ -20,6 +21,8 @@ Projeto Laravel para carteira financeira com autenticacao, operacoes financeiras
 - `app/Repositories/Eloquent` - Implementacoes Eloquent
 - `app/Exceptions/Finance` - Excecoes de dominio
 - `app/Http/Middleware/RequestLoggingMiddleware.php` - Observabilidade de requests
+- `app/Jobs` - Processamento assincrono de operacoes financeiras
+- `resources/lang` - Traducoes de mensagens da API
 
 ## Modelagem de dados
 
@@ -55,12 +58,14 @@ Projeto Laravel para carteira financeira com autenticacao, operacoes financeiras
 - Um usuario possui uma carteira (1:1).
 - Transferencia valida saldo antes de debitar.
 - Nao permite saldo negativo em transferencia.
-- Deposito aumenta saldo imediatamente.
+- Deposito, transferencia e reversao sao processados de forma assincrona via filas.
+- Operacoes retornam status `pending` imediatamente e sao processadas em background.
 - Transferencia eh idempotente quando o mesmo `idempotency_key` e enviado.
 - Reversao cria nova transacao `reversal`.
 - Reversao atualiza transacao original para `reversed`.
 - Reversao eh idempotente (repetir chamada nao duplica efeito).
 - Operacoes financeiras sao executadas com `DB::transaction`.
+- Mensagens da API sao traduzidas para portugues.
 
 ## Como rodar com Docker
 
@@ -89,7 +94,13 @@ docker compose exec app php artisan key:generate
 docker compose exec app php artisan migrate
 ```
 
-5. Acesse:
+5. Inicie o worker de filas (em outro terminal):
+
+```bash
+docker compose exec app php artisan queue:work
+```
+
+6. Acesse:
 
 - API: `http://localhost:8080/api/v1`
 - Frontend: `http://localhost:8080`
@@ -171,11 +182,19 @@ Response `200`:
     "id": 10,
     "type": "deposit",
     "amount": "100.50",
-    "status": "completed"
+    "status": "pending"
   },
   "errors": null
 }
 ```
+
+> **Nota**: Todas as operacoes financeiras retornam status `pending` e sao processadas em background. O status muda para `completed` apos processamento pela fila.
+
+## Traducoes
+
+As mensagens da API sao traduzidas para portugues. O idioma pode ser configurado via variavel `APP_LOCALE` no arquivo `.env` (padrao: `pt`).
+
+Arquivos de traducao: `resources/lang/pt/messages.php` e `resources/lang/en/messages.php`.
 
 ### Transferencia
 
