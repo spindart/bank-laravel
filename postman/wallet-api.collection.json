@@ -1,0 +1,229 @@
+﻿{
+  "info": {
+    "_postman_id": "e5f5d933-9b45-4f9f-a4f9-3d6a6aeb8b7d",
+    "name": "Wallet API (Laravel)",
+    "description": "Colecao da API de carteira com autenticacao Sanctum e operacoes financeiras.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Joao\",\n  \"email\": \"joao@example.com\",\n  \"password\": \"12345678\",\n  \"password_confirmation\": \"12345678\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201/200', function () {",
+                  "  pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json?.data?.token) {",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"joao@example.com\",\n  \"password\": \"12345678\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json?.data?.token) {",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wallet",
+      "item": [
+        {
+          "name": "Get Wallet",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/wallet",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "wallet"]
+            }
+          }
+        },
+        {
+          "name": "Deposit",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"100.50\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/deposit",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "deposit"]
+            }
+          }
+        },
+        {
+          "name": "Transfer",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receiver_user_id\": 2,\n  \"amount\": \"50.00\",\n  \"idempotency_key\": \"tx-transfer-001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/transfer",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "transfer"]
+            }
+          }
+        },
+        {
+          "name": "Reverse Transaction",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/reverse/{{transaction_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "reverse", "{{transaction_id}}"]
+            }
+          }
+        },
+        {
+          "name": "List Transactions",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/transactions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "transactions"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Broadcasting",
+      "item": [
+        {
+          "name": "Broadcast Auth",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel_name\": \"private-private-user.{{user_id}}\",\n  \"socket_id\": \"{{socket_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/broadcasting/auth",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "broadcasting", "auth"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" },
+    { "key": "transaction_id", "value": "1" },
+    { "key": "user_id", "value": "1" },
+    { "key": "socket_id", "value": "1234.5678" }
+  ]
+}
