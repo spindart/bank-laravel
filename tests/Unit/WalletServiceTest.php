@@ -6,6 +6,7 @@ use App\Exceptions\Finance\InsufficientBalanceException;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Services\WalletService;
+use App\ValueObjects\Money;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -18,10 +19,11 @@ class WalletServiceTest extends TestCase
         [$user, $wallet] = $this->createUserWithWallet(0);
         $service = app(WalletService::class);
 
-        $service->deposit($user, 25.30);
+        $service->deposit($user, '25.30');
         $wallet->refresh();
 
         $this->assertSame('25.30', $wallet->balance);
+        $this->assertSame(2530, $wallet->balance_cents);
     }
 
     public function test_transfer_throws_when_balance_is_insufficient(): void
@@ -31,7 +33,7 @@ class WalletServiceTest extends TestCase
         $service = app(WalletService::class);
 
         $this->expectException(InsufficientBalanceException::class);
-        $service->transfer($sender, $receiver->id, 100);
+        $service->transfer($sender, $receiver->id, '100.00');
     }
 
     public function test_reverse_is_idempotent_for_same_transaction(): void
@@ -40,7 +42,7 @@ class WalletServiceTest extends TestCase
         [$receiver, $receiverWallet] = $this->createUserWithWallet(15);
         $service = app(WalletService::class);
 
-        $transfer = $service->transfer($sender, $receiver->id, 20);
+        $transfer = $service->transfer($sender, $receiver->id, '20.00');
         $firstReverse = $service->reverse($sender, $transfer->id);
         $secondReverse = $service->reverse($sender, $transfer->id);
 
@@ -54,13 +56,15 @@ class WalletServiceTest extends TestCase
 
     private function createUserWithWallet(float $balance): array
     {
+        $money = Money::fromDecimal((string) $balance);
+
         $user = User::factory()->create();
         $wallet = Wallet::query()->create([
             'user_id' => $user->id,
-            'balance' => $balance,
+            'balance' => $money->toDecimal(),
+            'balance_cents' => $money->cents(),
         ]);
 
         return [$user, $wallet];
     }
 }
-

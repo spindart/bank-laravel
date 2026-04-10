@@ -6,6 +6,7 @@ use App\Events\WalletDashboardUpdated;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Wallet;
+use App\ValueObjects\Money;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Laravel\Sanctum\Sanctum;
@@ -171,10 +172,13 @@ class WalletApiTest extends TestCase
 
     private function createUserWithWallet(float $balance): array
     {
+        $money = Money::fromDecimal((string) $balance);
+
         $user = User::factory()->create();
         $wallet = Wallet::query()->create([
             'user_id' => $user->id,
-            'balance' => $balance,
+            'balance' => $money->toDecimal(),
+            'balance_cents' => $money->cents(),
         ]);
 
         return [$user, $wallet];

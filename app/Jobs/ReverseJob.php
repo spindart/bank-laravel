@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Events\WalletDashboardUpdated;
 use App\Models\Transaction;
 use App\Services\DashboardRealtimePayloadBuilder;
+use App\ValueObjects\Money;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -60,25 +61,44 @@ class ReverseJob implements ShouldQueue
 
             $senderWallet = $originalTransaction->senderWallet;
             $receiverWallet = $originalTransaction->receiverWallet;
+            $amountCents = $this->transactionAmountCents($originalTransaction);
 
             if ($originalTransaction->type === 'transfer') {
                 // Restore balances
                 if ($senderWallet) {
-                    $senderWallet->increment('balance', $originalTransaction->amount);
+                    $newSenderBalanceCents = $this->walletBalanceCents($senderWallet) + $amountCents;
+                    $senderWallet->update([
+                        'balance_cents' => $newSenderBalanceCents,
+                        'balance' => Money::fromCents($newSenderBalanceCents)->toDecimal(),
+                    ]);
                 }
                 if ($receiverWallet) {
-                    $receiverWallet->decrement('balance', $originalTransaction->amount);
+                    $newReceiverBalanceCents = $this->walletBalanceCents($receiverWallet) - $amountCents;
+                    $receiverWallet->update([
+                        'balance_cents' => $newReceiverBalanceCents,
+                        'balance' => Money::fromCents($newReceiverBalanceCents)->toDecimal(),
+                    ]);
                 }
             } elseif ($originalTransaction->type === 'deposit') {
                 // Reverse deposit: decrement receiver balance
                 if ($receiverWallet) {
-                    $receiverWallet->decrement('balance', $originalTransaction->amount);
+                    $newReceiverBalanceCents = $this->walletBalanceCents($receiverWallet) - $amountCents;
+                    $receiverWallet->update([
+                        'balance_cents' => $newReceiverBalanceCents,
+                        'balance' => Money::fromCents($newReceiverBalanceCents)->toDecimal(),
+                    ]);
                 }
             }
 
-            $reversalTransaction->update(['status' => 'completed']);
+            $reversalTransaction->update([
+                'status' => 'completed',
+                'amount_cents' => $this->transactionAmountCents($reversalTransaction),
+            ]);
 
-            $originalTransaction->update(['status' => 'reversed']);
+            $originalTransaction->update([
+                'status' => 'reversed',
+                'amount_cents' => $amountCents,
+            ]);
             $shouldBroadcast = true;
 
             $affectedUserIds = collect([$senderWallet?->user_id, $receiverWallet?->user_id])
@@ -107,5 +127,23 @@ class ReverseJob implements ShouldQueue
                 }
             }
         }
+    }
+
+    private function walletBalanceCents($wallet): int
+    {
+        if (!is_null($wallet->balance_cents)) {
+            return (int) $wallet->balance_cents;
+        }
+
+        return Money::fromDecimal((string) $wallet->balance)->cents();
+    }
+
+    private function transactionAmountCents(Transaction $transaction): int
+    {
+        if (!is_null($transaction->amount_cents)) {
+            return (int) $transaction->amount_cents;
+        }
+
+        return Money::fromDecimal((string) $transaction->amount)->cents();
     }
 }

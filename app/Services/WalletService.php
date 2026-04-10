@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\Wallet;
 use App\Repositories\Contracts\TransactionRepositoryInterface;
 use App\Repositories\Contracts\WalletRepositoryInterface;
+use App\ValueObjects\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -36,7 +37,7 @@ class WalletService
         return $wallet;
     }
 
-    public function deposit(User $user, float $amount): Transaction
+    public function deposit(User $user, string $amount): Transaction
     {
         try {
             $wallet = $this->walletRepository->findByUserId($user->id);
@@ -45,21 +46,24 @@ class WalletService
                 throw new WalletNotFoundException();
             }
 
+            $money = Money::fromDecimal($amount);
+
             $transaction = $this->transactionRepository->create([
                 'type' => 'deposit',
-                'amount' => $amount,
+                'amount' => $money->toDecimal(),
+                'amount_cents' => $money->cents(),
                 'sender_wallet_id' => null,
                 'receiver_wallet_id' => $wallet->id,
                 'status' => 'pending',
                 'original_transaction_id' => null,
             ]);
 
-            DepositJob::dispatch($transaction->id, $user->id, $amount);
+            DepositJob::dispatch($transaction->id, $user->id, $money->cents());
 
             Log::info('wallet.deposit_queued', [
                 'user_id' => $user->id,
                 'wallet_id' => $wallet->id,
-                'amount' => $amount,
+                'amount' => $money->toDecimal(),
                 'transaction_id' => $transaction->id,
             ]);
 
@@ -75,7 +79,7 @@ class WalletService
         }
     }
 
-    public function transfer(User $senderUser, int $receiverUserId, float $amount, ?string $idempotencyKey = null): Transaction
+    public function transfer(User $senderUser, int $receiverUserId, string $amount, ?string $idempotencyKey = null): Transaction
     {
         try {
             if ($idempotencyKey) {
@@ -85,6 +89,8 @@ class WalletService
                     return $existingTransaction;
                 }
             }
+
+            $money = Money::fromDecimal($amount);
 
             $senderWallet = $this->walletRepository->findByUserId($senderUser->id);
             $receiverWallet = $this->walletRepository->findByUserId($receiverUserId);
@@ -97,13 +103,14 @@ class WalletService
                 throw new InsufficientBalanceException('Cannot transfer to self');
             }
 
-            if ((float) $senderWallet->balance < $amount) {
+            if ($this->walletBalanceCents($senderWallet) < $money->cents()) {
                 throw new InsufficientBalanceException();
             }
 
             $transaction = $this->transactionRepository->create([
                 'type' => 'transfer',
-                'amount' => $amount,
+                'amount' => $money->toDecimal(),
+                'amount_cents' => $money->cents(),
                 'sender_wallet_id' => $senderWallet->id,
                 'receiver_wallet_id' => $receiverWallet->id,
                 'status' => 'pending',
@@ -111,12 +118,12 @@ class WalletService
                 'original_transaction_id' => null,
             ]);
 
-            TransferJob::dispatch($transaction->id, $senderUser->id, $receiverUserId, $amount, $idempotencyKey);
+            TransferJob::dispatch($transaction->id, $senderUser->id, $receiverUserId, $money->cents(), $idempotencyKey);
 
             Log::info('wallet.transfer_queued', [
                 'sender_user_id' => $senderUser->id,
                 'receiver_user_id' => $receiverUserId,
-                'amount' => $amount,
+                'amount' => $money->toDecimal(),
                 'transaction_id' => $transaction->id,
                 'idempotency_key' => $idempotencyKey,
             ]);
@@ -174,9 +181,12 @@ class WalletService
                 throw new TransactionNotReversibleException();
             }
 
+            $targetAmount = Money::fromCents($this->transactionAmountCents($targetTransaction));
+
             $reversal = $this->transactionRepository->create([
                 'type' => 'reversal',
-                'amount' => (float) $targetTransaction->amount,
+                'amount' => $targetAmount->toDecimal(),
+                'amount_cents' => $targetAmount->cents(),
                 'sender_wallet_id' => $targetTransaction->receiver_wallet_id,
                 'receiver_wallet_id' => $targetTransaction->sender_wallet_id,
                 'status' => 'pending',
@@ -201,5 +211,23 @@ class WalletService
 
             throw $exception;
         }
+    }
+
+    private function walletBalanceCents(Wallet $wallet): int
+    {
+        if (!is_null($wallet->balance_cents)) {
+            return (int) $wallet->balance_cents;
+        }
+
+        return Money::fromDecimal((string) $wallet->balance)->cents();
+    }
+
+    private function transactionAmountCents(Transaction $transaction): int
+    {
+        if (!is_null($transaction->amount_cents)) {
+            return (int) $transaction->amount_cents;
+        }
+
+        return Money::fromDecimal((string) $transaction->amount)->cents();
     }
 }

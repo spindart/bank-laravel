@@ -14,10 +14,12 @@ class Wallet extends Model
     protected $fillable = [
         'user_id',
         'balance',
+        'balance_cents',
     ];
 
     protected $casts = [
         'balance' => 'decimal:2',
+        'balance_cents' => 'integer',
     ];
 
     public function user(): BelongsTo

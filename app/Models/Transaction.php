@@ -14,6 +14,7 @@ class Transaction extends Model
     protected $fillable = [
         'type',
         'amount',
+        'amount_cents',
         'sender_wallet_id',
         'receiver_wallet_id',
         'status',
@@ -23,6 +24,7 @@ class Transaction extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'amount_cents' => 'integer',
         'created_at' => 'datetime',
     ];
 

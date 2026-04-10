@@ -6,6 +6,7 @@ use App\Events\WalletDashboardUpdated;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Services\DashboardRealtimePayloadBuilder;
+use App\ValueObjects\Money;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -21,18 +22,18 @@ class TransferJob implements ShouldQueue
     protected $transactionId;
     protected $senderUserId;
     protected $receiverUserId;
-    protected $amount;
+    protected $amountCents;
     protected $idempotencyKey;
 
     /**
      * Create a new job instance.
      */
-    public function __construct($transactionId, $senderUserId, $receiverUserId, $amount, $idempotencyKey = null)
+    public function __construct($transactionId, $senderUserId, $receiverUserId, $amountCents, $idempotencyKey = null)
     {
         $this->transactionId = $transactionId;
         $this->senderUserId = $senderUserId;
         $this->receiverUserId = $receiverUserId;
-        $this->amount = $amount;
+        $this->amountCents = $amountCents;
         $this->idempotencyKey = $idempotencyKey;
     }
 
@@ -51,7 +52,7 @@ class TransferJob implements ShouldQueue
                     'transaction_id' => $this->transactionId,
                     'sender_user_id' => $this->senderUserId,
                     'receiver_user_id' => $this->receiverUserId,
-                    'amount' => $this->amount,
+                    'amount_cents' => $this->amountCents,
                     'reason' => 'Transaction not found',
                 ]);
                 return;
@@ -66,7 +67,7 @@ class TransferJob implements ShouldQueue
                     'transaction_id' => $this->transactionId,
                     'sender_user_id' => $this->senderUserId,
                     'receiver_user_id' => $this->receiverUserId,
-                    'amount' => $this->amount,
+                    'amount_cents' => $this->amountCents,
                     'reason' => 'Idempotency key mismatch',
                 ]);
                 return;
@@ -79,34 +80,50 @@ class TransferJob implements ShouldQueue
                 Log::error('wallet.transfer_failed', [
                     'sender_user_id' => $this->senderUserId,
                     'receiver_user_id' => $this->receiverUserId,
-                    'amount' => $this->amount,
+                    'amount_cents' => $this->amountCents,
                     'reason' => 'Wallet not found'
                 ]);
                 return;
             }
 
-            if ((float) $senderWallet->balance < (float) $this->amount) {
+            $senderBalanceCents = $this->walletBalanceCents($senderWallet);
+            $receiverBalanceCents = $this->walletBalanceCents($receiverWallet);
+
+            if ($senderBalanceCents < (int) $this->amountCents) {
                 Log::error('wallet.transfer_failed', [
                     'transaction_id' => $this->transactionId,
                     'sender_user_id' => $this->senderUserId,
                     'receiver_user_id' => $this->receiverUserId,
-                    'amount' => $this->amount,
+                    'amount_cents' => $this->amountCents,
                     'reason' => 'Insufficient balance in job execution',
                 ]);
                 return;
             }
 
-            $senderWallet->decrement('balance', $this->amount);
-            $receiverWallet->increment('balance', $this->amount);
+            $newSenderBalanceCents = $senderBalanceCents - (int) $this->amountCents;
+            $newReceiverBalanceCents = $receiverBalanceCents + (int) $this->amountCents;
 
-            $transaction->update(['status' => 'completed']);
+            $senderWallet->update([
+                'balance_cents' => $newSenderBalanceCents,
+                'balance' => Money::fromCents($newSenderBalanceCents)->toDecimal(),
+            ]);
+            $receiverWallet->update([
+                'balance_cents' => $newReceiverBalanceCents,
+                'balance' => Money::fromCents($newReceiverBalanceCents)->toDecimal(),
+            ]);
+
+            $transaction->update([
+                'status' => 'completed',
+                'amount_cents' => (int) $this->amountCents,
+                'amount' => Money::fromCents((int) $this->amountCents)->toDecimal(),
+            ]);
             $shouldBroadcast = true;
 
             Log::info('wallet.transfer_completed', [
                 'transaction_id' => $transaction->id,
                 'sender_user_id' => $this->senderUserId,
                 'receiver_user_id' => $this->receiverUserId,
-                'amount' => $this->amount,
+                'amount_cents' => $this->amountCents,
                 'idempotency_key' => $this->idempotencyKey,
             ]);
         });
@@ -120,5 +137,14 @@ class TransferJob implements ShouldQueue
                 }
             }
         }
+    }
+
+    private function walletBalanceCents(Wallet $wallet): int
+    {
+        if (!is_null($wallet->balance_cents)) {
+            return (int) $wallet->balance_cents;
+        }
+
+        return Money::fromDecimal((string) $wallet->balance)->cents();
     }
 }

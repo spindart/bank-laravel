@@ -28,7 +28,7 @@ class WalletController extends Controller
     {
         $transaction = $this->walletService->deposit(
             $request->user(),
-            (float) $request->validated('amount')
+            (string) $request->validated('amount')
         );
 
         return ApiResponse::success($transaction, trans('messages.wallet.deposit.success'));
@@ -39,11 +39,10 @@ class WalletController extends Controller
         $transaction = $this->walletService->transfer(
             $request->user(),
             (int) $request->validated('receiver_user_id'),
-            (float) $request->validated('amount'),
+            (string) $request->validated('amount'),
             $request->validated('idempotency_key')
         );
 
         return ApiResponse::success($transaction, trans('messages.wallet.transfer.success'));
     }
 }
-

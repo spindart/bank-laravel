@@ -6,6 +6,7 @@ use App\Events\WalletDashboardUpdated;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Services\DashboardRealtimePayloadBuilder;
+use App\ValueObjects\Money;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -20,16 +21,16 @@ class DepositJob implements ShouldQueue
 
     protected $transactionId;
     protected $userId;
-    protected $amount;
+    protected $amountCents;
 
     /**
      * Create a new job instance.
      */
-    public function __construct($transactionId, $userId, $amount)
+    public function __construct($transactionId, $userId, $amountCents)
     {
         $this->transactionId = $transactionId;
         $this->userId = $userId;
-        $this->amount = $amount;
+        $this->amountCents = $amountCents;
     }
 
     /**
@@ -47,7 +48,7 @@ class DepositJob implements ShouldQueue
                 Log::error('wallet.deposit_failed', [
                     'transaction_id' => $this->transactionId,
                     'user_id' => $this->userId,
-                    'amount' => $this->amount,
+                    'amount_cents' => $this->amountCents,
                     'reason' => 'Wallet or transaction not found',
                 ]);
                 return;
@@ -57,16 +58,24 @@ class DepositJob implements ShouldQueue
                 return;
             }
 
-            $wallet->increment('balance', $this->amount);
+            $newBalanceCents = $this->walletBalanceCents($wallet) + (int) $this->amountCents;
+            $wallet->update([
+                'balance_cents' => $newBalanceCents,
+                'balance' => Money::fromCents($newBalanceCents)->toDecimal(),
+            ]);
 
-            $transaction->update(['status' => 'completed']);
+            $transaction->update([
+                'status' => 'completed',
+                'amount_cents' => (int) $this->amountCents,
+                'amount' => Money::fromCents((int) $this->amountCents)->toDecimal(),
+            ]);
             $shouldBroadcast = true;
 
             Log::info('wallet.deposit_completed', [
                 'transaction_id' => $transaction->id,
                 'user_id' => $this->userId,
-                'amount' => $this->amount,
-                'new_balance' => $wallet->fresh()->balance,
+                'amount_cents' => $this->amountCents,
+                'new_balance_cents' => $newBalanceCents,
             ]);
         });
 
@@ -77,5 +86,14 @@ class DepositJob implements ShouldQueue
                 event(new WalletDashboardUpdated($this->userId, $payload));
             }
         }
+    }
+
+    private function walletBalanceCents(Wallet $wallet): int
+    {
+        if (!is_null($wallet->balance_cents)) {
+            return (int) $wallet->balance_cents;
+        }
+
+        return Money::fromDecimal((string) $wallet->balance)->cents();
     }
 }
