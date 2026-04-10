@@ -8,6 +8,7 @@ Projeto Laravel para carteira financeira com autenticacao, operacoes financeiras
 - Laravel 13
 - MySQL 8.4
 - Redis 7
+- Laravel Reverb (WebSockets)
 - Laravel Sanctum (token Bearer)
 - Docker (PHP-FPM + Nginx + MySQL + Redis)
 - PHPUnit
@@ -100,11 +101,18 @@ docker compose exec app php artisan migrate
 docker compose exec app php artisan queue:work
 ```
 
-6. Acesse:
+6. Inicie o servidor WebSocket do Reverb (em outro terminal):
+
+```bash
+docker compose exec app php artisan reverb:start --host=0.0.0.0 --port=8081
+```
+
+7. Acesse:
 
 - API: `http://localhost:8080/api/v1`
 - Frontend: `http://localhost:8080`
 - Health check: `http://localhost:8080/up`
+- WebSocket Reverb: `ws://localhost:8081`
 
 ## Fluxo de autenticacao
 
@@ -122,6 +130,7 @@ docker compose exec app php artisan queue:work
 
 ### Protegidos (`auth:sanctum`)
 
+- `POST /api/v1/broadcasting/auth`
 - `POST /api/v1/logout`
 - `GET /api/v1/wallet`
 - `POST /api/v1/deposit`
@@ -189,6 +198,8 @@ Response `200`:
 ```
 
 > **Nota**: Todas as operacoes financeiras retornam status `pending` e sao processadas em background. O status muda para `completed` apos processamento pela fila.
+>
+> Quando os jobs concluem com sucesso, o backend emite eventos via Reverb para atualizar automaticamente o dashboard do usuario.
 
 ## Traducoes
 
@@ -274,3 +285,4 @@ Funcionalidades:
 - Transferencia
 - Historico
 - Feedback visual e loader
+- Atualizacao automatica via WebSocket apos conclusao dos jobs

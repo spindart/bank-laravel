@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Events\WalletDashboardUpdated;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -17,6 +19,7 @@ class WalletApiTest extends TestCase
     {
         [$user, $wallet] = $this->createUserWithWallet(0);
         Sanctum::actingAs($user);
+        Event::fake([WalletDashboardUpdated::class]);
 
         $response = $this->postJson('/api/v1/deposit', [
             'amount' => 150.50,
@@ -32,6 +35,17 @@ class WalletApiTest extends TestCase
             'receiver_wallet_id' => $wallet->id,
             'status' => 'completed',
         ]);
+        $this->assertDatabaseCount('transactions', 1);
+
+        Event::assertDispatched(WalletDashboardUpdated::class, function (WalletDashboardUpdated $event) use ($user): bool {
+            $payload = $event->payload();
+
+            return $event->userId() === $user->id
+                && ($payload['event_type'] ?? null) === 'deposit_completed'
+                && ($payload['wallet']['user_id'] ?? null) === $user->id
+                && isset($payload['occurred_at'])
+                && ! empty($payload['transactions']);
+        });
     }
 
     public function test_transfer_blocks_insufficient_balance(): void
@@ -57,6 +71,7 @@ class WalletApiTest extends TestCase
         [$sender, $senderWallet] = $this->createUserWithWallet(120);
         [$receiver, $receiverWallet] = $this->createUserWithWallet(40);
         Sanctum::actingAs($sender);
+        Event::fake([WalletDashboardUpdated::class]);
 
         $idempotencyKey = 'tx-transfer-unique-key';
 
@@ -82,6 +97,24 @@ class WalletApiTest extends TestCase
             $secondResponse->json('data.id')
         );
         $this->assertDatabaseCount('transactions', 1);
+        Event::assertDispatchedTimes(WalletDashboardUpdated::class, 2);
+        Event::assertDispatched(WalletDashboardUpdated::class, function (WalletDashboardUpdated $event) use ($sender, $receiver): bool {
+            $payload = $event->payload();
+
+            return $event->userId() === $sender->id
+                && ($payload['event_type'] ?? null) === 'transfer_completed'
+                && ($payload['wallet']['user_id'] ?? null) === $sender->id
+                && ! empty($payload['transactions']);
+        });
+
+        Event::assertDispatched(WalletDashboardUpdated::class, function (WalletDashboardUpdated $event) use ($receiver): bool {
+            $payload = $event->payload();
+
+            return $event->userId() === $receiver->id
+                && ($payload['event_type'] ?? null) === 'transfer_completed'
+                && ($payload['wallet']['user_id'] ?? null) === $receiver->id
+                && ! empty($payload['transactions']);
+        });
     }
 
     public function test_reverse_restores_balances_and_is_idempotent(): void
@@ -89,6 +122,7 @@ class WalletApiTest extends TestCase
         [$sender, $senderWallet] = $this->createUserWithWallet(100);
         [$receiver, $receiverWallet] = $this->createUserWithWallet(10);
         Sanctum::actingAs($sender);
+        Event::fake([WalletDashboardUpdated::class]);
 
         $transferResponse = $this->postJson('/api/v1/transfer', [
             'receiver_user_id' => $receiver->id,
@@ -115,6 +149,24 @@ class WalletApiTest extends TestCase
             $secondReverse->json('data.id')
         );
         $this->assertDatabaseCount('transactions', 2);
+
+        Event::assertDispatched(WalletDashboardUpdated::class, function (WalletDashboardUpdated $event) use ($sender, $receiver): bool {
+            $payload = $event->payload();
+
+            return $event->userId() === $sender->id
+                && ($payload['event_type'] ?? null) === 'reversal_completed'
+                && ($payload['wallet']['user_id'] ?? null) === $sender->id
+                && count($payload['transactions'] ?? []) >= 1;
+        });
+
+        Event::assertDispatched(WalletDashboardUpdated::class, function (WalletDashboardUpdated $event) use ($receiver): bool {
+            $payload = $event->payload();
+
+            return $event->userId() === $receiver->id
+                && ($payload['event_type'] ?? null) === 'reversal_completed'
+                && ($payload['wallet']['user_id'] ?? null) === $receiver->id
+                && count($payload['transactions'] ?? []) >= 1;
+        });
     }
 
     private function createUserWithWallet(float $balance): array
@@ -128,4 +180,3 @@ class WalletApiTest extends TestCase
         return [$user, $wallet];
     }
 }
-

@@ -17,6 +17,7 @@ RUN apk add --no-cache \
     bcmath \
     intl \
     mbstring \
+    pcntl \
     pdo_mysql
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -24,4 +25,3 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www
 
 CMD ["php-fpm"]
-

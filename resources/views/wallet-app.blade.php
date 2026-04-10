@@ -16,6 +16,7 @@
             <div class="text-end d-none d-md-block">
                 <div class="text-muted small">Usuário logado</div>
                 <div id="currentUserBadge" class="fw-semibold">ID -</div>
+                <div id="realtimeStatus" class="small text-muted">Tempo real: conectando...</div>
             </div>
             <button id="btnLogout" class="btn btn-outline-danger btn-sm" data-original-label="Sair">Sair</button>
         </div>
@@ -107,11 +108,23 @@
 </div>
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pusher-js@8.4.0/dist/web/pusher.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/laravel-echo@2.2.4/dist/echo.iife.js"></script>
 <script>
     const API_BASE = `${window.location.origin}/api/v1`;
     const TOKEN_KEY = 'wallet_token';
+    const REVERB_CONFIG = {
+        key: @json(config('broadcasting.connections.reverb.key', '')),
+        host: @json(config('broadcasting.connections.reverb.options.host', 'localhost')),
+        port: Number(@json((int) config('broadcasting.connections.reverb.options.port', 8081))),
+        scheme: @json(config('broadcasting.connections.reverb.options.scheme', 'http')),
+    };
+
     let currentWalletId = null;
+    let currentUserId = null;
     let currentTransferIdempotencyKey = null;
+    let currentTransactions = [];
+    let echoInstance = null;
 
     function getTransferIdempotencyKey() {
         if (!currentTransferIdempotencyKey) {
@@ -129,7 +142,7 @@
 
     function showAlert(type, message) {
         const box = $('#alertBox');
-        box.removeClass('d-none alert-success alert-danger alert-warning')
+        box.removeClass('d-none alert-success alert-danger alert-warning alert-info')
             .addClass(`alert-${type}`)
             .text(message)
             .hide()
@@ -140,6 +153,16 @@
         $('#alertBox').fadeOut(120, function () {
             $(this).addClass('d-none');
         });
+    }
+
+    function setRealtimeStatus(connected) {
+        const label = connected ? 'Tempo real: conectado' : 'Tempo real: indisponivel';
+        const css = connected ? 'text-success' : 'text-warning';
+
+        $('#realtimeStatus')
+            .text(label)
+            .removeClass('text-success text-warning text-muted')
+            .addClass(css);
     }
 
     function formatMoney(value) {
@@ -169,9 +192,9 @@
 
     function getTypeBadge(type) {
         const mapping = {
-            deposit: { label: 'Depósito', class: 'badge-type-deposit', icon: 'bi-arrow-down-circle' },
-            transfer: { label: 'Transferência', class: 'badge-type-transfer', icon: 'bi-arrow-right-circle' },
-            reversal: { label: 'Reversão', class: 'badge-type-reversal', icon: 'bi-arrow-counterclockwise' }
+            deposit: { label: 'Deposito', class: 'badge-type-deposit', icon: 'bi-arrow-down-circle' },
+            transfer: { label: 'Transferencia', class: 'badge-type-transfer', icon: 'bi-arrow-right-circle' },
+            reversal: { label: 'Reversao', class: 'badge-type-reversal', icon: 'bi-arrow-counterclockwise' }
         };
 
         const item = mapping[type] || { label: type, class: 'badge bg-secondary', icon: 'bi-three-dots' };
@@ -180,7 +203,7 @@
 
     function getStatusBadge(status) {
         const mapping = {
-            completed: { label: 'Concluído', class: 'badge-status-completed' },
+            completed: { label: 'Concluido', class: 'badge-status-completed' },
             reversed: { label: 'Revertido', class: 'badge-status-reversed' },
             pending: { label: 'Pendente', class: 'badge-status-pending' }
         };
@@ -244,25 +267,16 @@
         });
     }
 
-    async function loadWallet() {
-        const res = await apiRequest('GET', '/wallet');
-        $('#walletBalance').text(formatMoney(res.data.balance));
-        $('#currentUserId').text(res.data.user_id ?? '-');
-        $('#currentUserBadge').text(`ID ${res.data.user_id ?? '-'}`);
-        currentWalletId = res.data.id ?? null;
-    }
-
-    async function loadTransactions() {
-        const res = await apiRequest('GET', '/transactions');
+    function renderTransactions(transactions) {
         const tbody = $('#txTableBody');
         tbody.empty();
 
-        if (!res.data || !res.data.length) {
-            tbody.append('<tr><td colspan="8" class="text-center text-muted py-4">Sem transações.</td></tr>');
+        if (!transactions.length) {
+            tbody.append('<tr><td colspan="8" class="text-center text-muted py-4">Sem transacoes.</td></tr>');
             return;
         }
 
-        res.data.forEach((tx) => {
+        transactions.forEach((tx) => {
             const actionBtn = canReverseTransaction(tx)
                 ? `<button class="btn btn-sm btn-outline-danger btn-reverse" data-original-label="Reverter" data-id="${tx.id}"><i class="bi bi-arrow-counterclockwise me-1"></i>Reverter</button>`
                 : '<span class="text-muted">-</span>';
@@ -282,9 +296,110 @@
         });
     }
 
+    function upsertTransactions(transactions) {
+        if (!Array.isArray(transactions) || !transactions.length) {
+            return;
+        }
+
+        const map = new Map(currentTransactions.map((tx) => [Number(tx.id), tx]));
+
+        transactions.forEach((tx) => {
+            map.set(Number(tx.id), {
+                ...map.get(Number(tx.id)),
+                ...tx,
+            });
+        });
+
+        currentTransactions = Array.from(map.values()).sort((a, b) => Number(b.id) - Number(a.id));
+        renderTransactions(currentTransactions);
+    }
+
+    function applyRealtimePayload(payload) {
+        if (!payload || typeof payload !== 'object') {
+            return;
+        }
+
+        if (payload.wallet) {
+            $('#walletBalance').text(formatMoney(payload.wallet.balance));
+            currentWalletId = payload.wallet.id ?? currentWalletId;
+            currentUserId = payload.wallet.user_id ?? currentUserId;
+            $('#currentUserBadge').text(`ID ${currentUserId ?? '-'}`);
+        }
+
+        upsertTransactions(payload.transactions ?? []);
+    }
+
+    async function loadWallet() {
+        const res = await apiRequest('GET', '/wallet');
+        $('#walletBalance').text(formatMoney(res.data.balance));
+        currentUserId = res.data.user_id ?? null;
+        $('#currentUserBadge').text(`ID ${res.data.user_id ?? '-'}`);
+        currentWalletId = res.data.id ?? null;
+    }
+
+    async function loadTransactions() {
+        const res = await apiRequest('GET', '/transactions');
+        currentTransactions = Array.isArray(res.data) ? res.data : [];
+        renderTransactions(currentTransactions);
+    }
+
     async function loadDashboard() {
         await loadWallet();
         await loadTransactions();
+    }
+
+    function connectDashboardRealtime() {
+        if (echoInstance || !currentUserId || !token()) {
+            return;
+        }
+
+        if (!window.Echo || !window.Pusher || !REVERB_CONFIG.key) {
+            setRealtimeStatus(false);
+            return;
+        }
+
+        const EchoCtor = window.Echo.default ?? window.Echo;
+        const isTls = REVERB_CONFIG.scheme === 'https';
+
+        echoInstance = new EchoCtor({
+            broadcaster: 'reverb',
+            key: REVERB_CONFIG.key,
+            wsHost: REVERB_CONFIG.host,
+            wsPort: REVERB_CONFIG.port,
+            wssPort: REVERB_CONFIG.port,
+            forceTLS: isTls,
+            enabledTransports: ['ws', 'wss'],
+            authEndpoint: `${API_BASE}/broadcasting/auth`,
+            auth: {
+                headers: {
+                    Authorization: `Bearer ${token()}`,
+                },
+            },
+        });
+
+        echoInstance.private(`private-user.${currentUserId}`)
+            .listen('.wallet.dashboard.updated', function (payload) {
+                applyRealtimePayload(payload);
+            });
+
+        const pusher = echoInstance.connector?.pusher;
+
+        if (pusher?.connection) {
+            pusher.connection.bind('state_change', function (states) {
+                const connected = states.current === 'connected';
+                setRealtimeStatus(connected);
+            });
+        }
+    }
+
+    function disconnectDashboardRealtime() {
+        if (!echoInstance) {
+            return;
+        }
+
+        echoInstance.disconnect();
+        echoInstance = null;
+        setRealtimeStatus(false);
     }
 
     async function onLogout() {
@@ -295,6 +410,7 @@
             await apiRequest('POST', '/logout');
         } catch (_) {
         } finally {
+            disconnectDashboardRealtime();
             clearToken();
             window.location.href = '/auth';
         }
@@ -309,8 +425,7 @@
                 amount: Number($('#depositAmount').val())
             });
             $('#depositAmount').val('');
-            await loadDashboard();
-            showAlert('success', 'Depósito realizado com sucesso.');
+            showAlert('info', 'Deposito enviado. O dashboard sera atualizado automaticamente ao concluir.');
         } catch (xhr) {
             showAlert('danger', parseError(xhr));
         } finally {
@@ -332,8 +447,7 @@
             currentTransferIdempotencyKey = null;
             $('#transferReceiver').val('');
             $('#transferAmount').val('');
-            await loadDashboard();
-            showAlert('success', 'Transferência realizada com sucesso.');
+            showAlert('info', 'Transferencia enviada. O dashboard sera atualizado automaticamente ao concluir.');
         } catch (xhr) {
             showAlert('danger', parseError(xhr));
         } finally {
@@ -347,8 +461,7 @@
         showLoading(true);
         try {
             await apiRequest('POST', `/reverse/${id}`);
-            await loadDashboard();
-            showAlert('success', `Transação ${id} revertida com sucesso.`);
+            showAlert('info', `Reversao ${id} enviada. O dashboard sera atualizado automaticamente ao concluir.`);
         } catch (xhr) {
             showAlert('danger', parseError(xhr));
         } finally {
@@ -377,8 +490,10 @@
         });
 
         showLoading(true);
+        setRealtimeStatus(false);
         try {
             await loadDashboard();
+            connectDashboardRealtime();
         } catch (_) {
             clearToken();
             window.location.href = '/auth';
@@ -389,3 +504,6 @@
 </script>
 </body>
 </html>
+
+
+

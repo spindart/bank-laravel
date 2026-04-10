@@ -2,8 +2,9 @@
 
 namespace App\Jobs;
 
+use App\Events\WalletDashboardUpdated;
 use App\Models\Transaction;
-use App\Models\Wallet;
+use App\Services\DashboardRealtimePayloadBuilder;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -18,27 +19,34 @@ class ReverseJob implements ShouldQueue
 
     protected $transactionId;
     protected $userId;
+    protected $reversalTransactionId;
 
     /**
      * Create a new job instance.
      */
-    public function __construct($transactionId, $userId)
+    public function __construct($transactionId, $userId, $reversalTransactionId)
     {
         $this->transactionId = $transactionId;
         $this->userId = $userId;
+        $this->reversalTransactionId = $reversalTransactionId;
     }
 
     /**
      * Execute the job.
      */
-    public function handle(): void
+    public function handle(DashboardRealtimePayloadBuilder $payloadBuilder): void
     {
-        DB::transaction(function () {
-            $originalTransaction = Transaction::find($this->transactionId);
+        $affectedUserIds = [];
+        $shouldBroadcast = false;
 
-            if (!$originalTransaction || $originalTransaction->status !== 'completed') {
+        DB::transaction(function () use (&$affectedUserIds, &$shouldBroadcast) {
+            $originalTransaction = Transaction::query()->whereKey($this->transactionId)->lockForUpdate()->first();
+            $reversalTransaction = Transaction::query()->whereKey($this->reversalTransactionId)->lockForUpdate()->first();
+
+            if (!$originalTransaction || !$reversalTransaction || $originalTransaction->status !== 'completed') {
                 Log::error('wallet.reverse_failed', [
                     'transaction_id' => $this->transactionId,
+                    'reversal_transaction_id' => $this->reversalTransactionId,
                     'user_id' => $this->userId,
                     'reason' => 'Transaction not found or not reversible'
                 ]);
@@ -46,8 +54,7 @@ class ReverseJob implements ShouldQueue
             }
 
             // Check if reversal already exists
-            $existingReversal = Transaction::where('original_transaction_id', $this->transactionId)->first();
-            if ($existingReversal && $existingReversal->status === 'completed') {
+            if ($reversalTransaction->status === 'completed') {
                 return;
             }
 
@@ -69,18 +76,36 @@ class ReverseJob implements ShouldQueue
                 }
             }
 
-            $reversalTransaction = Transaction::where('original_transaction_id', $this->transactionId)->first();
-            if ($reversalTransaction) {
-                $reversalTransaction->update(['status' => 'completed']);
-            }
+            $reversalTransaction->update(['status' => 'completed']);
 
             $originalTransaction->update(['status' => 'reversed']);
+            $shouldBroadcast = true;
+
+            $affectedUserIds = collect([$senderWallet?->user_id, $receiverWallet?->user_id])
+                ->filter(fn (?int $id): bool => !is_null($id))
+                ->unique()
+                ->values()
+                ->all();
 
             Log::info('wallet.reverse_completed', [
                 'original_transaction_id' => $this->transactionId,
-                'reversal_transaction_id' => $reversalTransaction ? $reversalTransaction->id : null,
+                'reversal_transaction_id' => $reversalTransaction->id,
                 'user_id' => $this->userId,
             ]);
         });
+
+        if ($shouldBroadcast) {
+            foreach ($affectedUserIds as $userId) {
+                $payload = $payloadBuilder->buildForUser(
+                    $userId,
+                    'reversal_completed',
+                    [$this->transactionId, $this->reversalTransactionId]
+                );
+
+                if ($payload) {
+                    event(new WalletDashboardUpdated($userId, $payload));
+                }
+            }
+        }
     }
 }

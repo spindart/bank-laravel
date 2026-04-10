@@ -54,7 +54,7 @@ class WalletService
                 'original_transaction_id' => null,
             ]);
 
-            DepositJob::dispatch($user->id, $amount);
+            DepositJob::dispatch($transaction->id, $user->id, $amount);
 
             Log::info('wallet.deposit_queued', [
                 'user_id' => $user->id,
@@ -111,7 +111,7 @@ class WalletService
                 'original_transaction_id' => null,
             ]);
 
-            TransferJob::dispatch($senderUser->id, $receiverUserId, $amount, $idempotencyKey);
+            TransferJob::dispatch($transaction->id, $senderUser->id, $receiverUserId, $amount, $idempotencyKey);
 
             Log::info('wallet.transfer_queued', [
                 'sender_user_id' => $senderUser->id,
@@ -183,7 +183,7 @@ class WalletService
                 'original_transaction_id' => $targetTransaction->id,
             ]);
 
-            ReverseJob::dispatch($transactionId, $user->id);
+            ReverseJob::dispatch($transactionId, $user->id, $reversal->id);
 
             Log::info('wallet.reverse_queued', [
                 'user_id' => $user->id,
