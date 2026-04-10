@@ -6,7 +6,7 @@ class WalletNotFoundException extends FinanceException
 {
     public function __construct()
     {
-        parent::__construct('Carteira nao encontrada para o usuario.', 404);
+        parent::__construct(trans('messages.error.wallet_not_found'), 404);
     }
 }
 

@@ -26,14 +26,14 @@ class TransactionController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        return ApiResponse::success($transactions, 'Historico carregado com sucesso.');
+        return ApiResponse::success($transactions, trans('messages.transaction.history.success'));
     }
 
     public function reverse(Request $request, int $transactionId): JsonResponse
     {
         $transaction = $this->walletService->reverse($request->user(), $transactionId);
 
-        return ApiResponse::success($transaction, 'Transacao revertida com sucesso.');
+        return ApiResponse::success($transaction, trans('messages.wallet.reverse.success'));
     }
 }
 

@@ -21,7 +21,7 @@ class WalletController extends Controller
     {
         $wallet = $this->walletService->getUserWallet($request->user());
 
-        return ApiResponse::success($wallet, 'Carteira carregada com sucesso.');
+        return ApiResponse::success($wallet, trans('messages.wallet.show.success'));
     }
 
     public function deposit(DepositRequest $request): JsonResponse
@@ -31,7 +31,7 @@ class WalletController extends Controller
             (float) $request->validated('amount')
         );
 
-        return ApiResponse::success($transaction, 'Deposito realizado com sucesso.');
+        return ApiResponse::success($transaction, trans('messages.wallet.deposit.success'));
     }
 
     public function transfer(TransferRequest $request): JsonResponse
@@ -43,7 +43,7 @@ class WalletController extends Controller
             $request->validated('idempotency_key')
         );
 
-        return ApiResponse::success($transaction, 'Transferencia realizada com sucesso.');
+        return ApiResponse::success($transaction, trans('messages.wallet.transfer.success'));
     }
 }
 

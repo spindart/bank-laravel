@@ -28,7 +28,7 @@ class AuthController extends Controller
         return ApiResponse::success([
             'user' => $user,
             'token' => $token,
-        ], 'Usuario registrado com sucesso.', 201);
+        ], trans('messages.auth.register.success'), 201);
     }
 
     public function login(LoginRequest $request): JsonResponse
@@ -37,7 +37,7 @@ class AuthController extends Controller
 
         if (! $user || ! Hash::check($request->validated('password'), $user->password)) {
             throw ValidationException::withMessages([
-                'email' => ['Credenciais invalidas.'],
+                'email' => [trans('messages.auth.invalid_credentials')],
             ]);
         }
 
@@ -46,13 +46,13 @@ class AuthController extends Controller
         return ApiResponse::success([
             'user' => $user,
             'token' => $token,
-        ], 'Login realizado com sucesso.');
+        ], trans('messages.auth.login.success'));
     }
 
     public function logout(): JsonResponse
     {
         auth()->user()?->currentAccessToken()?->delete();
 
-        return ApiResponse::success(null, 'Logout realizado com sucesso.');
+        return ApiResponse::success(null, trans('messages.auth.logout.success'));
     }
 }
