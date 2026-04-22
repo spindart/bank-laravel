@@ -22,5 +22,6 @@ return [
     'error.insufficient_balance' => 'Insufficient balance for transfer.',
     'error.transaction_not_reversible' => 'Only completed transactions can be reversed.',
     'error.wallet_not_found' => 'Wallet not found for user.',
+    'error.too_many_requests' => 'Too many requests. Please try again shortly.',
     'error.internal_server' => 'Internal server error.',
 ];

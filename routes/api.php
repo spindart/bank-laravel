@@ -16,9 +16,9 @@ Route::prefix('v1')->group(function (): void {
         });
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('wallet', [WalletController::class, 'show']);
-        Route::post('deposit', [WalletController::class, 'deposit']);
-        Route::post('transfer', [WalletController::class, 'transfer']);
-        Route::post('reverse/{transactionId}', [TransactionController::class, 'reverse']);
+        Route::post('deposit', [WalletController::class, 'deposit'])->middleware('throttle:wallet-mutations');
+        Route::post('transfer', [WalletController::class, 'transfer'])->middleware('throttle:wallet-mutations');
+        Route::post('reverse/{transactionId}', [TransactionController::class, 'reverse'])->middleware('throttle:wallet-mutations');
         Route::get('transactions', [TransactionController::class, 'index']);
     });
 });

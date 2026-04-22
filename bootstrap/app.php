@@ -7,6 +7,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -58,6 +59,19 @@ return Application::configure(basePath: dirname(__DIR__))
                 'data' => null,
                 'errors' => null,
             ], 401);
+        });
+
+        $exceptions->render(function (TooManyRequestsHttpException $exception, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => trans('messages.error.too_many_requests'),
+                'data' => null,
+                'errors' => null,
+            ], 429);
         });
 
         $exceptions->render(function (\Throwable $exception, Request $request) {

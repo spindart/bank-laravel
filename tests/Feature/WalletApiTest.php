@@ -170,6 +170,67 @@ class WalletApiTest extends TestCase
         });
     }
 
+    public function test_deposit_is_rate_limited(): void
+    {
+        [$user] = $this->createUserWithWallet(0);
+        Sanctum::actingAs($user);
+
+        for ($i = 0; $i < 10; $i++) {
+            $this->postJson('/api/v1/deposit', ['amount' => 1])->assertOk();
+        }
+
+        $this->postJson('/api/v1/deposit', ['amount' => 1])
+            ->assertStatus(429)
+            ->assertJsonPath('message', trans('messages.error.too_many_requests'));
+    }
+
+    public function test_transfer_is_rate_limited(): void
+    {
+        [$sender] = $this->createUserWithWallet(1000);
+        [$receiver] = $this->createUserWithWallet(0);
+        Sanctum::actingAs($sender);
+
+        for ($i = 0; $i < 10; $i++) {
+            $this->postJson('/api/v1/transfer', [
+                'receiver_user_id' => $receiver->id,
+                'amount' => 1,
+                'idempotency_key' => "limit-transfer-{$i}",
+            ])->assertOk();
+        }
+
+        $this->postJson('/api/v1/transfer', [
+            'receiver_user_id' => $receiver->id,
+            'amount' => 1,
+            'idempotency_key' => 'limit-transfer-over',
+        ])
+            ->assertStatus(429)
+            ->assertJsonPath('message', trans('messages.error.too_many_requests'));
+    }
+
+    public function test_reverse_is_rate_limited(): void
+    {
+        [$sender, $senderWallet] = $this->createUserWithWallet(100);
+        [, $receiverWallet] = $this->createUserWithWallet(0);
+        Sanctum::actingAs($sender);
+
+        $transaction = Transaction::query()->create([
+            'type' => 'transfer',
+            'amount' => '1.00',
+            'amount_cents' => 100,
+            'sender_wallet_id' => $senderWallet->id,
+            'receiver_wallet_id' => $receiverWallet->id,
+            'status' => 'completed',
+        ]);
+
+        for ($i = 0; $i < 10; $i++) {
+            $this->postJson("/api/v1/reverse/{$transaction->id}")->assertOk();
+        }
+
+        $this->postJson("/api/v1/reverse/{$transaction->id}")
+            ->assertStatus(429)
+            ->assertJsonPath('message', trans('messages.error.too_many_requests'));
+    }
+
     private function createUserWithWallet(float $balance): array
     {
         $money = Money::fromDecimal((string) $balance);

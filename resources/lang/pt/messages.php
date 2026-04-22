@@ -22,5 +22,6 @@ return [
     'error.insufficient_balance' => 'Saldo insuficiente para transferir.',
     'error.transaction_not_reversible' => 'Somente transacoes completed podem ser revertidas.',
     'error.wallet_not_found' => 'Carteira nao encontrada para o usuario.',
+    'error.too_many_requests' => 'Muitas requisicoes. Tente novamente em instantes.',
     'error.internal_server' => 'Erro interno do servidor.',
 ];
