@@ -256,6 +256,98 @@ class WalletApiTest extends TestCase
             ->assertJsonPath('data.1.id', 3);
     }
 
+    public function test_transactions_history_supports_filters_for_type_status_and_date(): void
+    {
+        [$user, $wallet] = $this->createUserWithWallet(0);
+        Sanctum::actingAs($user);
+
+        $today = now()->startOfDay();
+        $yesterday = $today->copy()->subDay();
+
+        Transaction::query()->create([
+            'type' => 'deposit',
+            'amount' => '10.00',
+            'amount_cents' => 1000,
+            'sender_wallet_id' => null,
+            'receiver_wallet_id' => $wallet->id,
+            'status' => 'completed',
+            'created_at' => $today->copy()->addHour(),
+        ]);
+
+        Transaction::query()->create([
+            'type' => 'transfer',
+            'amount' => '20.00',
+            'amount_cents' => 2000,
+            'sender_wallet_id' => $wallet->id,
+            'receiver_wallet_id' => null,
+            'status' => 'pending',
+            'created_at' => $today->copy()->addHours(2),
+        ]);
+
+        Transaction::query()->create([
+            'type' => 'deposit',
+            'amount' => '30.00',
+            'amount_cents' => 3000,
+            'sender_wallet_id' => null,
+            'receiver_wallet_id' => $wallet->id,
+            'status' => 'completed',
+            'created_at' => $yesterday->copy()->addHour(),
+        ]);
+
+        $response = $this->getJson('/api/v1/transactions?type=deposit&status=completed&date='.$today->toDateString());
+
+        $response
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.type', 'deposit')
+            ->assertJsonPath('data.0.status', 'completed')
+            ->assertJsonPath('data.0.amount', '10.00');
+    }
+
+    public function test_transactions_history_filters_date_using_requested_timezone(): void
+    {
+        [$user, $wallet] = $this->createUserWithWallet(0);
+        Sanctum::actingAs($user);
+
+        Transaction::query()->create([
+            'type' => 'deposit',
+            'amount' => '10.00',
+            'amount_cents' => 1000,
+            'sender_wallet_id' => null,
+            'receiver_wallet_id' => $wallet->id,
+            'status' => 'completed',
+            'created_at' => '2026-04-22 01:30:00',
+        ]);
+
+        Transaction::query()->create([
+            'type' => 'deposit',
+            'amount' => '20.00',
+            'amount_cents' => 2000,
+            'sender_wallet_id' => null,
+            'receiver_wallet_id' => $wallet->id,
+            'status' => 'completed',
+            'created_at' => '2026-04-22 12:00:00',
+        ]);
+
+        $response = $this->getJson('/api/v1/transactions?date=2026-04-22&timezone=America/Sao_Paulo');
+
+        $response
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.amount', '20.00')
+            ->assertJsonPath('data.1.amount', '10.00');
+    }
+
+    public function test_transactions_history_rejects_invalid_filters(): void
+    {
+        [$user] = $this->createUserWithWallet(0);
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/v1/transactions?type=invalid&status=done&date=2026-99-99')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['type', 'status', 'date']);
+    }
+
     public function test_transactions_history_rejects_invalid_limit_and_offset(): void
     {
         [$user] = $this->createUserWithWallet(0);

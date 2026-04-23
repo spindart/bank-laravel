@@ -12,6 +12,7 @@ services:
       - ./:/var/www
     depends_on:
       - mysql
+      - redis
     networks:
       - wallet_network
 

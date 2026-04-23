@@ -95,6 +95,8 @@ docker compose exec app php artisan key:generate
 docker compose exec app php artisan migrate
 ```
 
+O ambiente padrao ja sobe com Redis como backend de cache, fila e sessao.
+
 5. Inicie o worker de filas (em outro terminal):
 
 ```bash
@@ -140,6 +142,9 @@ docker compose exec app php artisan reverb:start --host=0.0.0.0 --port=8081
   - Query params opcionais:
     - `limit` (inteiro entre 1 e 100, padrao `20`)
     - `offset` (inteiro maior ou igual a 0, padrao `0`)
+    - `type` (`deposit`, `transfer`, `reversal`)
+    - `status` (`pending`, `completed`, `reversed`)
+    - `date` (formato `YYYY-MM-DD`, filtra por data de criacao)
 
 ## Exemplos de request/response
 

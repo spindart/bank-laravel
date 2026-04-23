@@ -4,116 +4,214 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Wallet | Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="/css/dashboard.css" rel="stylesheet">
 </head>
 <body class="bg-soft">
-<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm mb-4">
-    <div class="container-xl">
-        <a class="navbar-brand fw-bold text-primary" href="#">Wallet</a>
-        <div class="d-flex align-items-center gap-3">
-            <div class="text-end d-none d-md-block">
-                <div class="text-muted small">Usuário logado</div>
-                <div id="currentUserBadge" class="fw-semibold">ID -</div>
-                <div id="realtimeStatus" class="small text-muted">Tempo real: conectando...</div>
+<div class="app-shell">
+    <aside class="app-sidebar">
+        <div class="sidebar-brand">
+            <div class="sidebar-brand-icon">
+                <i class="bi bi-wallet2"></i>
             </div>
-            <button id="btnLogout" class="btn btn-outline-danger btn-sm" data-original-label="Sair">Sair</button>
+            <span class="sidebar-brand-text">Wallet</span>
         </div>
-    </div>
-</nav>
 
-<main class="container-xl pb-5">
-    <div id="alertBox" class="alert d-none" role="alert"></div>
+        <nav class="sidebar-nav">
+            <a href="#" class="sidebar-link is-active">
+                <i class="bi bi-house-door"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="#historySection" class="sidebar-link">
+                <i class="bi bi-clock-history"></i>
+                <span>Transacoes</span>
+            </a>
+            {{-- <a href="#historySection" class="sidebar-link">
+                <i class="bi bi-receipt"></i>
+                <span>Extrato</span>
+            </a>
+            <a href="#" class="sidebar-link">
+                <i class="bi bi-gear"></i>
+                <span>Configuracoes</span>
+            </a> --}}
+        </nav>
 
-    <div class="row g-4 mb-4">
-        <div class="col-lg-4">
-            <div class="card dashboard-card h-100">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <span class="d-block text-uppercase text-muted fs-7 mb-2">Saldo disponível</span>
-                            <div id="walletBalance" class="display-5 fw-semibold text-success">R$ 0,00</div>
+        {{-- <div class="sidebar-help">
+            <div class="sidebar-help-icon">
+                <i class="bi bi-headset"></i>
+            </div>
+            <h3>Precisa de ajuda?</h3>
+            <p>Entre em contato com nosso suporte.</p>
+            <button type="button" class="btn btn-outline-primary w-100">Fale conosco</button>
+        </div> --}}
+    </aside>
+
+    <div class="app-content">
+        <header class="topbar">
+            <div class="topbar-title-wrap">
+                <div class="topbar-kicker">Painel financeiro</div>
+                <h1 class="topbar-title">Sua carteira em um unico lugar</h1>
+            </div>
+            <div class="topbar-user">
+                <div class="topbar-user-badge">ID</div>
+                <div class="topbar-user-copy">
+                    <div class="small text-muted">Usuario logado</div>
+                    <div id="currentUserBadge" class="fw-semibold">ID -</div>
+                    <div id="realtimeStatus" class="small text-muted">Tempo real: conectando...</div>
+                </div>
+                <button id="btnLogout" class="btn btn-outline-danger topbar-logout" data-original-label="Sair">
+                    <i class="bi bi-box-arrow-right me-2"></i>Sair
+                </button>
+            </div>
+        </header>
+
+        <main class="app-main">
+            <div id="alertBox" class="alert d-none" role="alert"></div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-lg-4">
+                    <div class="card dashboard-card balance-card h-100">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-start mb-4">
+                                <div>
+                                    <span class="d-block text-uppercase text-muted fs-7 mb-2">Saldo disponivel</span>
+                                    <div id="walletBalance" class="display-5 fw-semibold text-success">R$ 0,00</div>
+                                </div>
+                                <div class="balance-icon">
+                                    <i class="bi bi-wallet2"></i>
+                                </div>
+                            </div>
+                            {{-- <button type="button" class="balance-link">
+                                <span>Ver extrato</span>
+                                <i class="bi bi-eye"></i>
+                            </button> --}}
                         </div>
-                        <span class="badge rounded-pill bg-primary bg-opacity-10 text-primary py-2 px-3">Carteira</span>
                     </div>
-               
                 </div>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="card dashboard-card h-100">
-                <div class="card-body p-4">
-                    <h2 class="h6 text-uppercase text-muted mb-3">Depositar</h2>
-                    <label for="depositAmount" class="form-label small text-uppercase">Valor</label>
-                    <div class="input-group mb-3">
-                        <span class="input-group-text">R$</span>
-                        <input id="depositAmount" type="number" step="0.01" min="0.01" class="form-control form-control-lg" placeholder="0,00">
-                    </div>
-                    <button id="btnDeposit" class="btn btn-primary w-100 btn-action" data-original-label="Depositar">Depositar</button>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="card dashboard-card h-100">
-                <div class="card-body p-4">
-                    <h2 class="h6 text-uppercase text-muted mb-3">Transferir</h2>
-                    <label for="transferReceiver" class="form-label small text-uppercase">ID do usuário destino</label>
-                    <input id="transferReceiver" type="number" min="1" class="form-control form-control-lg mb-3" placeholder="ID do usuário destino">
-                    <label for="transferAmount" class="form-label small text-uppercase">Valor</label>
-                    <div class="input-group mb-3">
-                        <span class="input-group-text">R$</span>
-                        <input id="transferAmount" type="number" step="0.01" min="0.01" class="form-control form-control-lg" placeholder="0,00">
-                    </div>
-                    <button id="btnTransfer" class="btn btn-success w-100 btn-action" data-original-label="Transferir">Transferir</button>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <div class="card dashboard-card">
-        <div class="card-body p-4">
-            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3">
-                <div>
-                    <h2 class="h5 mb-1">Histórico de transações</h2>
-                    <p class="text-muted mb-0">Últimas movimentações da sua carteira</p>
+                <div class="col-lg-4">
+                    <div class="card dashboard-card action-card h-100">
+                        <div class="card-body p-4">
+                            <h2 class="h6 text-uppercase text-muted mb-3">Depositar</h2>
+                            <label for="depositAmount" class="form-label small">Valor</label>
+                            <div class="input-group mb-3">
+                                <span class="input-group-text">R$</span>
+                                <input id="depositAmount" type="number" step="0.01" min="0.01" class="form-control form-control-lg" placeholder="0,00">
+                            </div>
+                            <button id="btnDeposit" class="btn btn-primary w-100 btn-action" data-original-label="Depositar">
+                                <i class="bi bi-download me-2"></i>Depositar
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="d-flex flex-wrap align-items-center gap-2 mt-3 mt-md-0">
-                    <label for="txLimit" class="small text-muted mb-0">Por pagina</label>
-                    <select id="txLimit" class="form-select form-select-sm" style="width: auto;">
-                        <option value="10">10</option>
-                        <option value="20" selected>20</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                    </select>
-                    <button id="btnPrevPage" class="btn btn-sm btn-outline-secondary btn-action" disabled>Anterior</button>
-                    <span id="txPageInfo" class="small text-muted">Pagina 1</span>
-                    <button id="btnNextPage" class="btn btn-sm btn-outline-secondary btn-action" disabled>Proxima</button>
-                    <button id="btnRefresh" class="btn btn-sm btn-outline-secondary btn-action" data-original-label="Atualizar">Atualizar</button>
+
+                <div class="col-lg-4">
+                    <div class="card dashboard-card action-card h-100">
+                        <div class="card-body p-4">
+                            <h2 class="h6 text-uppercase text-muted mb-3">Transferir</h2>
+                            <label for="transferReceiver" class="form-label small">ID do usuario destino</label>
+                            <input id="transferReceiver" type="number" min="1" class="form-control form-control-lg mb-3" placeholder="ID do usuario destino">
+                            <label for="transferAmount" class="form-label small">Valor</label>
+                            <div class="input-group mb-3">
+                                <span class="input-group-text">R$</span>
+                                <input id="transferAmount" type="number" step="0.01" min="0.01" class="form-control form-control-lg" placeholder="0,00">
+                            </div>
+                            <button id="btnTransfer" class="btn btn-success w-100 btn-action" data-original-label="Transferir">
+                                <i class="bi bi-send me-2"></i>Transferir
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="table-responsive">
-                <table class="table table-hover table-borderless table-striped align-middle mb-0">
-                    <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Tipo</th>
-                        <th>Status</th>
-                        <th class="text-end">Valor</th>
-                        <th>Sender</th>
-                        <th>Receiver</th>
-                        <th>Criada em</th>
-                        <th>Ações</th>
-                    </tr>
-                    </thead>
-                    <tbody id="txTableBody">
-                    <tr><td colspan="8" class="text-center text-muted py-4">Sem transações.</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+
+            <section id="historySection" class="card dashboard-card history-card">
+                <div class="card-body p-4">
+                    <div class="history-header">
+                        <div class="history-title-wrap">
+                            <div class="history-title-icon">
+                                <i class="bi bi-clock-history"></i>
+                            </div>
+                            <div class="history-copy">
+                                <h2 class="h4 mb-1">Historico de transacoes</h2>
+                                <p class="text-muted mb-0">Ultimas movimentacoes da sua carteira</p>
+                            </div>
+                        </div>
+                        <div id="txFilterSummary" class="history-summary">Sem filtros ativos</div>
+                    </div>
+
+                    <div class="history-toolbar">
+                        <div class="history-filters">
+                            <select id="txFilterType" class="form-select form-select-sm history-select" style="width: auto;">
+                                <option value="">Tipo: todos</option>
+                                <option value="deposit">Deposito</option>
+                                <option value="transfer">Transferencia</option>
+                                <option value="reversal">Reversao</option>
+                            </select>
+                            <select id="txFilterStatus" class="form-select form-select-sm history-select" style="width: auto;">
+                                <option value="">Status: todos</option>
+                                <option value="pending">Pendente</option>
+                                <option value="completed">Concluido</option>
+                                <option value="reversed">Revertido</option>
+                            </select>
+                            <input id="txFilterDate" type="date" class="form-control form-control-sm history-input" style="width: auto;" title="Filtrar por data">
+                            <button id="btnClearFilters" class="btn btn-sm btn-outline-secondary history-secondary-btn">
+                                <i class="bi bi-funnel me-2"></i>Limpar filtros
+                            </button>
+                        </div>
+                        <div class="history-toolbar-right">
+                            <label for="txLimit" class="small text-muted mb-0 history-limit-label">Por pagina</label>
+                            <select id="txLimit" class="form-select form-select-sm history-select history-limit-select" style="width: auto;">
+                                <option value="10">10</option>
+                                <option value="20" selected>20</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="history-pagination-bar">
+                        <div class="history-page-actions">
+                            <span id="txPageInfo" class="history-page-pill">Pagina 1</span>
+                            <button id="btnPrevPage" class="btn btn-sm btn-outline-secondary history-nav-btn" disabled>Anterior</button>
+                            <button id="btnNextPage" class="btn btn-sm btn-outline-secondary history-nav-btn" disabled>Proxima</button>
+                        </div>
+                        <div class="history-refresh-wrap">
+                            <button id="btnRefresh" class="btn btn-sm btn-outline-secondary history-secondary-btn" data-original-label="Atualizar">
+                                <i class="bi bi-arrow-clockwise me-2"></i>Atualizar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive history-table-wrap">
+                        <table class="table table-hover table-borderless table-striped align-middle mb-0 history-table">
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Tipo</th>
+                                <th>Status</th>
+                                <th class="text-end">Valor</th>
+                                <th>Sender</th>
+                                <th>Receiver</th>
+                                <th>Criada em</th>
+                                <th>Acoes</th>
+                            </tr>
+                            </thead>
+                            <tbody id="txTableBody">
+                            <tr><td colspan="8" class="text-center text-muted py-4">Sem transacoes.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <footer class="app-footer">© 2026 Wallet. Todos os direitos reservados.</footer>
+        </main>
     </div>
-</main>
+</div>
 
 <div id="globalSpinner" class="position-fixed top-0 start-0 w-100 h-100 d-none align-items-center justify-content-center" style="background: rgba(0,0,0,.25); z-index: 1055;">
     <div class="spinner-border text-light" role="status"></div>
@@ -131,6 +229,7 @@
         port: Number(@json((int) config('broadcasting.connections.reverb.options.port', 8081))),
         scheme: @json(config('broadcasting.connections.reverb.options.scheme', 'http')),
     };
+    const BROWSER_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
     let currentWalletId = null;
     let currentUserId = null;
@@ -141,6 +240,11 @@
         limit: 20,
         offset: 0,
         lastFetchedCount: 0,
+    };
+    const transactionsFilters = {
+        type: '',
+        status: '',
+        date: '',
     };
 
     function getTransferIdempotencyKey() {
@@ -209,8 +313,8 @@
 
     function getTypeBadge(type) {
         const mapping = {
-            deposit: { label: 'Deposito', class: 'badge-type-deposit', icon: 'bi-arrow-down-circle' },
-            transfer: { label: 'Transferencia', class: 'badge-type-transfer', icon: 'bi-arrow-right-circle' },
+            deposit: { label: 'Deposito', class: 'badge-type-deposit', icon: 'bi-arrow-down' },
+            transfer: { label: 'Transferencia', class: 'badge-type-transfer', icon: 'bi-arrow-up-right' },
             reversal: { label: 'Reversao', class: 'badge-type-reversal', icon: 'bi-arrow-counterclockwise' }
         };
 
@@ -341,6 +445,70 @@
         $('#txLimit').val(String(transactionsPage.limit));
         $('#btnPrevPage').prop('disabled', transactionsPage.offset === 0);
         $('#btnNextPage').prop('disabled', transactionsPage.lastFetchedCount < transactionsPage.limit);
+        $('#txFilterType').val(transactionsFilters.type);
+        $('#txFilterStatus').val(transactionsFilters.status);
+        $('#txFilterDate').val(transactionsFilters.date);
+        updateTransactionsFilterState();
+    }
+
+    function updateTransactionsFilterState() {
+        const filters = [];
+        const typeLabels = {
+            deposit: 'Deposito',
+            transfer: 'Transferencia',
+            reversal: 'Reversao',
+        };
+        const statusLabels = {
+            pending: 'Pendente',
+            completed: 'Concluido',
+            reversed: 'Revertido',
+        };
+
+        if (transactionsFilters.type) {
+            filters.push(`Tipo: ${typeLabels[transactionsFilters.type] ?? transactionsFilters.type}`);
+        }
+
+        if (transactionsFilters.status) {
+            filters.push(`Status: ${statusLabels[transactionsFilters.status] ?? transactionsFilters.status}`);
+        }
+
+        if (transactionsFilters.date) {
+            filters.push(`Data: ${transactionsFilters.date}`);
+        }
+
+        $('#txFilterSummary')
+            .text(filters.length ? filters.join(' | ') : 'Sem filtros ativos')
+            .toggleClass('is-active', filters.length > 0);
+
+        $('#txFilterType').toggleClass('is-active', Boolean(transactionsFilters.type));
+        $('#txFilterStatus').toggleClass('is-active', Boolean(transactionsFilters.status));
+        $('#txFilterDate').toggleClass('is-active', Boolean(transactionsFilters.date));
+        $('#btnClearFilters').prop('disabled', filters.length === 0);
+    }
+
+    function hasActiveTransactionsFilters() {
+        return Boolean(transactionsFilters.type || transactionsFilters.status || transactionsFilters.date);
+    }
+
+    function buildTransactionsQuery() {
+        const params = new URLSearchParams();
+        params.set('limit', String(transactionsPage.limit));
+        params.set('offset', String(transactionsPage.offset));
+
+        if (transactionsFilters.type) {
+            params.set('type', transactionsFilters.type);
+        }
+
+        if (transactionsFilters.status) {
+            params.set('status', transactionsFilters.status);
+        }
+
+        if (transactionsFilters.date) {
+            params.set('date', transactionsFilters.date);
+            params.set('timezone', BROWSER_TIMEZONE);
+        }
+
+        return `/transactions?${params.toString()}`;
     }
 
     function applyRealtimePayload(payload) {
@@ -355,7 +523,7 @@
             $('#currentUserBadge').text(`ID ${currentUserId ?? '-'}`);
         }
 
-        if (transactionsPage.offset === 0) {
+        if (transactionsPage.offset === 0 && !hasActiveTransactionsFilters()) {
             upsertTransactions(payload.transactions ?? []);
         }
     }
@@ -369,7 +537,7 @@
     }
 
     async function loadTransactions() {
-        const query = `/transactions?limit=${transactionsPage.limit}&offset=${transactionsPage.offset}`;
+        const query = buildTransactionsQuery();
         const res = await apiRequest('GET', query);
         currentTransactions = Array.isArray(res.data) ? res.data : [];
         transactionsPage.lastFetchedCount = currentTransactions.length;
@@ -503,6 +671,28 @@
         }
     }
 
+    function syncFiltersFromInputs() {
+        transactionsFilters.type = String($('#txFilterType').val() || '');
+        transactionsFilters.status = String($('#txFilterStatus').val() || '');
+        transactionsFilters.date = String($('#txFilterDate').val() || '');
+    }
+
+    function resetTransactionsFilters() {
+        transactionsFilters.type = '';
+        transactionsFilters.status = '';
+        transactionsFilters.date = '';
+        $('#txFilterType').val('');
+        $('#txFilterStatus').val('');
+        $('#txFilterDate').val('');
+    }
+
+    function refreshTransactionsWithButtonState() {
+        toggleButtonLoading('#btnRefresh', true);
+        loadTransactions()
+            .catch(() => showAlert('danger', 'Nao foi possivel carregar as transacoes.'))
+            .finally(() => toggleButtonLoading('#btnRefresh', false));
+    }
+
     $(document).ready(async function () {
         if (!token()) {
             window.location.href = '/auth';
@@ -516,14 +706,21 @@
             toggleButtonLoading('#btnRefresh', true);
             loadDashboard().finally(() => toggleButtonLoading('#btnRefresh', false));
         });
+        $('#txFilterType, #txFilterStatus, #txFilterDate').on('change', function () {
+            syncFiltersFromInputs();
+            transactionsPage.offset = 0;
+            refreshTransactionsWithButtonState();
+        });
+        $('#btnClearFilters').on('click', function () {
+            resetTransactionsFilters();
+            transactionsPage.offset = 0;
+            refreshTransactionsWithButtonState();
+        });
         $('#txLimit').on('change', function () {
             const selected = Number($(this).val());
             transactionsPage.limit = Number.isInteger(selected) && selected >= 1 ? selected : 20;
             transactionsPage.offset = 0;
-            toggleButtonLoading('#btnRefresh', true);
-            loadTransactions()
-                .catch(() => showAlert('danger', 'Nao foi possivel carregar as transacoes.'))
-                .finally(() => toggleButtonLoading('#btnRefresh', false));
+            refreshTransactionsWithButtonState();
         });
         $('#btnPrevPage').on('click', function () {
             if (transactionsPage.offset === 0) {
@@ -531,10 +728,7 @@
             }
 
             transactionsPage.offset = Math.max(0, transactionsPage.offset - transactionsPage.limit);
-            toggleButtonLoading('#btnRefresh', true);
-            loadTransactions()
-                .catch(() => showAlert('danger', 'Nao foi possivel carregar as transacoes.'))
-                .finally(() => toggleButtonLoading('#btnRefresh', false));
+            refreshTransactionsWithButtonState();
         });
         $('#btnNextPage').on('click', function () {
             if (transactionsPage.lastFetchedCount < transactionsPage.limit) {
