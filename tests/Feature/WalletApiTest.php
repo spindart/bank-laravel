@@ -231,6 +231,41 @@ class WalletApiTest extends TestCase
             ->assertJsonPath('message', trans('messages.error.too_many_requests'));
     }
 
+    public function test_transactions_history_supports_limit_and_offset(): void
+    {
+        [$user, $wallet] = $this->createUserWithWallet(0);
+        Sanctum::actingAs($user);
+
+        for ($i = 1; $i <= 5; $i++) {
+            Transaction::query()->create([
+                'type' => 'deposit',
+                'amount' => sprintf('%d.00', $i),
+                'amount_cents' => $i * 100,
+                'sender_wallet_id' => null,
+                'receiver_wallet_id' => $wallet->id,
+                'status' => 'completed',
+            ]);
+        }
+
+        $response = $this->getJson('/api/v1/transactions?limit=2&offset=1');
+
+        $response
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.id', 4)
+            ->assertJsonPath('data.1.id', 3);
+    }
+
+    public function test_transactions_history_rejects_invalid_limit_and_offset(): void
+    {
+        [$user] = $this->createUserWithWallet(0);
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/v1/transactions?limit=0&offset=-1')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['limit', 'offset']);
+    }
+
     private function createUserWithWallet(float $balance): array
     {
         $money = Money::fromDecimal((string) $balance);

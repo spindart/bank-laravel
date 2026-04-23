@@ -78,7 +78,19 @@
                     <h2 class="h5 mb-1">Histórico de transações</h2>
                     <p class="text-muted mb-0">Últimas movimentações da sua carteira</p>
                 </div>
-                <button id="btnRefresh" class="btn btn-sm btn-outline-secondary btn-action" data-original-label="Atualizar">Atualizar</button>
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-3 mt-md-0">
+                    <label for="txLimit" class="small text-muted mb-0">Por pagina</label>
+                    <select id="txLimit" class="form-select form-select-sm" style="width: auto;">
+                        <option value="10">10</option>
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <button id="btnPrevPage" class="btn btn-sm btn-outline-secondary btn-action" disabled>Anterior</button>
+                    <span id="txPageInfo" class="small text-muted">Pagina 1</span>
+                    <button id="btnNextPage" class="btn btn-sm btn-outline-secondary btn-action" disabled>Proxima</button>
+                    <button id="btnRefresh" class="btn btn-sm btn-outline-secondary btn-action" data-original-label="Atualizar">Atualizar</button>
+                </div>
             </div>
             <div class="table-responsive">
                 <table class="table table-hover table-borderless table-striped align-middle mb-0">
@@ -125,6 +137,11 @@
     let currentTransferIdempotencyKey = null;
     let currentTransactions = [];
     let echoInstance = null;
+    const transactionsPage = {
+        limit: 20,
+        offset: 0,
+        lastFetchedCount: 0,
+    };
 
     function getTransferIdempotencyKey() {
         if (!currentTransferIdempotencyKey) {
@@ -310,8 +327,20 @@
             });
         });
 
-        currentTransactions = Array.from(map.values()).sort((a, b) => Number(b.id) - Number(a.id));
+        currentTransactions = Array.from(map.values())
+            .sort((a, b) => Number(b.id) - Number(a.id))
+            .slice(0, transactionsPage.limit);
+        transactionsPage.lastFetchedCount = currentTransactions.length;
         renderTransactions(currentTransactions);
+        updateTransactionsPaginationControls();
+    }
+
+    function updateTransactionsPaginationControls() {
+        const currentPage = Math.floor(transactionsPage.offset / transactionsPage.limit) + 1;
+        $('#txPageInfo').text(`Pagina ${currentPage}`);
+        $('#txLimit').val(String(transactionsPage.limit));
+        $('#btnPrevPage').prop('disabled', transactionsPage.offset === 0);
+        $('#btnNextPage').prop('disabled', transactionsPage.lastFetchedCount < transactionsPage.limit);
     }
 
     function applyRealtimePayload(payload) {
@@ -326,7 +355,9 @@
             $('#currentUserBadge').text(`ID ${currentUserId ?? '-'}`);
         }
 
-        upsertTransactions(payload.transactions ?? []);
+        if (transactionsPage.offset === 0) {
+            upsertTransactions(payload.transactions ?? []);
+        }
     }
 
     async function loadWallet() {
@@ -338,9 +369,12 @@
     }
 
     async function loadTransactions() {
-        const res = await apiRequest('GET', '/transactions');
+        const query = `/transactions?limit=${transactionsPage.limit}&offset=${transactionsPage.offset}`;
+        const res = await apiRequest('GET', query);
         currentTransactions = Array.isArray(res.data) ? res.data : [];
+        transactionsPage.lastFetchedCount = currentTransactions.length;
         renderTransactions(currentTransactions);
+        updateTransactionsPaginationControls();
     }
 
     async function loadDashboard() {
@@ -482,6 +516,47 @@
             toggleButtonLoading('#btnRefresh', true);
             loadDashboard().finally(() => toggleButtonLoading('#btnRefresh', false));
         });
+        $('#txLimit').on('change', function () {
+            const selected = Number($(this).val());
+            transactionsPage.limit = Number.isInteger(selected) && selected >= 1 ? selected : 20;
+            transactionsPage.offset = 0;
+            toggleButtonLoading('#btnRefresh', true);
+            loadTransactions()
+                .catch(() => showAlert('danger', 'Nao foi possivel carregar as transacoes.'))
+                .finally(() => toggleButtonLoading('#btnRefresh', false));
+        });
+        $('#btnPrevPage').on('click', function () {
+            if (transactionsPage.offset === 0) {
+                return;
+            }
+
+            transactionsPage.offset = Math.max(0, transactionsPage.offset - transactionsPage.limit);
+            toggleButtonLoading('#btnRefresh', true);
+            loadTransactions()
+                .catch(() => showAlert('danger', 'Nao foi possivel carregar as transacoes.'))
+                .finally(() => toggleButtonLoading('#btnRefresh', false));
+        });
+        $('#btnNextPage').on('click', function () {
+            if (transactionsPage.lastFetchedCount < transactionsPage.limit) {
+                return;
+            }
+
+            const previousOffset = transactionsPage.offset;
+            transactionsPage.offset += transactionsPage.limit;
+            toggleButtonLoading('#btnRefresh', true);
+            loadTransactions()
+                .then(() => {
+                    if (!currentTransactions.length) {
+                        transactionsPage.offset = previousOffset;
+                        return loadTransactions().then(() => showAlert('info', 'Voce ja esta na ultima pagina.'));
+                    }
+                })
+                .catch(() => {
+                    transactionsPage.offset = previousOffset;
+                    showAlert('danger', 'Nao foi possivel carregar as transacoes.');
+                })
+                .finally(() => toggleButtonLoading('#btnRefresh', false));
+        });
         $(document).on('click', '.btn-reverse', function () {
             const button = $(this);
             const id = button.data('id');
@@ -504,6 +579,3 @@
 </script>
 </body>
 </html>
-
-
-

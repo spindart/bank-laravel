@@ -137,6 +137,9 @@ docker compose exec app php artisan reverb:start --host=0.0.0.0 --port=8081
 - `POST /api/v1/transfer`
 - `POST /api/v1/reverse/{transactionId}`
 - `GET /api/v1/transactions`
+  - Query params opcionais:
+    - `limit` (inteiro entre 1 e 100, padrao `20`)
+    - `offset` (inteiro maior ou igual a 0, padrao `0`)
 
 ## Exemplos de request/response
 
