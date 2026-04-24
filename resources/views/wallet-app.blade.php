@@ -79,7 +79,7 @@
                             <div class="d-flex justify-content-between align-items-start mb-4">
                                 <div>
                                     <span class="d-block text-uppercase text-muted fs-7 mb-2">Saldo disponivel</span>
-                                    <div id="walletBalance" class="display-5 fw-semibold text-success">R$ 0,00</div>
+                                    <div id="walletBalance" class="display-5 fw-semibold text-success balance-value" aria-live="polite">R$ 0,00</div>
                                 </div>
                                 <div class="balance-icon">
                                     <i class="bi bi-wallet2"></i>
@@ -213,11 +213,53 @@
     </div>
 </div>
 
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    <div id="feedbackToast" class="toast feedback-toast border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-body">
+            <div id="feedbackToastIcon" class="feedback-toast-icon">
+                <i class="bi bi-check-lg"></i>
+            </div>
+            <div id="feedbackToastMessage" class="feedback-toast-message">Operacao concluida.</div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="toast" aria-label="Fechar"></button>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="transferConfirmModal" tabindex="-1" aria-labelledby="transferConfirmTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content transfer-confirm-modal">
+            <div class="modal-header">
+                <h2 id="transferConfirmTitle" class="modal-title h5">Confirmar transferencia</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="transfer-confirm-summary">
+                    <div>
+                        <span class="transfer-confirm-label">Destino</span>
+                        <strong id="confirmTransferReceiver">Usuario -</strong>
+                    </div>
+                    <div>
+                        <span class="transfer-confirm-label">Valor</span>
+                        <strong id="confirmTransferAmount">R$ 0,00</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button id="btnConfirmTransfer" type="button" class="btn btn-success" data-original-label="Confirmar">
+                    <i class="bi bi-send me-2"></i>Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="globalSpinner" class="position-fixed top-0 start-0 w-100 h-100 d-none align-items-center justify-content-center" style="background: rgba(0,0,0,.25); z-index: 1055;">
     <div class="spinner-border text-light" role="status"></div>
 </div>
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pusher-js@8.4.0/dist/web/pusher.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/laravel-echo@2.2.4/dist/echo.iife.js"></script>
 <script>
@@ -236,6 +278,9 @@
     let currentTransferIdempotencyKey = null;
     let currentTransactions = [];
     let echoInstance = null;
+    let lastWalletBalance = null;
+    let transferConfirmModal = null;
+    let feedbackToast = null;
     const transactionsPage = {
         limit: 20,
         offset: 0,
@@ -261,13 +306,28 @@
         $('#globalSpinner').toggleClass('d-none', !show).toggleClass('d-flex', show);
     }
 
+    function showToast(type, message) {
+        const toastEl = document.getElementById('feedbackToast');
+        const icon = $('#feedbackToastIcon');
+        const iconClass = type === 'success'
+            ? 'bi-check-lg'
+            : type === 'danger'
+                ? 'bi-exclamation-triangle'
+                : 'bi-info-lg';
+
+        $('#feedbackToastMessage').text(message);
+        $('#feedbackToast')
+            .removeClass('toast-success toast-danger toast-info')
+            .addClass(`toast-${type}`);
+        icon.html(`<i class="bi ${iconClass}"></i>`);
+
+        feedbackToast = feedbackToast || bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 4200 });
+        feedbackToast.show();
+    }
+
     function showAlert(type, message) {
-        const box = $('#alertBox');
-        box.removeClass('d-none alert-success alert-danger alert-warning alert-info')
-            .addClass(`alert-${type}`)
-            .text(message)
-            .hide()
-            .fadeIn(180);
+        const toastType = type === 'danger' ? 'danger' : type === 'success' ? 'success' : 'info';
+        showToast(toastType, message);
     }
 
     function hideAlert() {
@@ -289,6 +349,52 @@
     function formatMoney(value) {
         const n = Number(value || 0);
         return `R$ ${n.toFixed(2).replace('.', ',')}`;
+    }
+
+    function setWalletBalance(value, options = {}) {
+        const numericBalance = Number(value || 0);
+        const shouldHighlight = options.highlight !== false
+            && lastWalletBalance !== null
+            && numericBalance !== lastWalletBalance;
+
+        $('#walletBalance')
+            .removeClass('skeleton skeleton-text balance-changed')
+            .text(formatMoney(numericBalance));
+
+        if (shouldHighlight) {
+            const balance = $('#walletBalance');
+            balance.addClass('balance-changed');
+            window.setTimeout(() => balance.removeClass('balance-changed'), 1300);
+        }
+
+        lastWalletBalance = numericBalance;
+    }
+
+    function renderTransactionSkeletonRows() {
+        const rows = Array.from({ length: 5 }, () => `
+            <tr class="skeleton-row">
+                <td><span class="skeleton skeleton-pill"></span></td>
+                <td><span class="skeleton skeleton-badge"></span></td>
+                <td><span class="skeleton skeleton-badge"></span></td>
+                <td class="text-end"><span class="skeleton skeleton-text-sm ms-auto"></span></td>
+                <td><span class="skeleton skeleton-text-xs"></span></td>
+                <td><span class="skeleton skeleton-text-xs"></span></td>
+                <td><span class="skeleton skeleton-text"></span></td>
+                <td><span class="skeleton skeleton-button"></span></td>
+            </tr>
+        `).join('');
+
+        $('#txTableBody').html(rows);
+    }
+
+    function setDashboardSkeleton(loading) {
+        $('#walletBalance')
+            .toggleClass('skeleton skeleton-text', loading)
+            .text(loading ? '' : $('#walletBalance').text());
+
+        if (loading) {
+            renderTransactionSkeletonRows();
+        }
     }
 
     function formatDateTime(value) {
@@ -353,10 +459,14 @@
         const btn = typeof button === 'string' ? $(button) : button;
         const label = btn.data('original-label') || btn.text().trim();
 
+        if (!btn.data('original-html')) {
+            btn.data('original-html', btn.html());
+        }
+
         if (loading) {
             btn.prop('disabled', true).html(`<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>${label}`);
         } else {
-            btn.prop('disabled', false).text(label);
+            btn.prop('disabled', false).html(btn.data('original-html'));
         }
     }
 
@@ -517,7 +627,7 @@
         }
 
         if (payload.wallet) {
-            $('#walletBalance').text(formatMoney(payload.wallet.balance));
+            setWalletBalance(payload.wallet.balance);
             currentWalletId = payload.wallet.id ?? currentWalletId;
             currentUserId = payload.wallet.user_id ?? currentUserId;
             $('#currentUserBadge').text(`ID ${currentUserId ?? '-'}`);
@@ -530,7 +640,7 @@
 
     async function loadWallet() {
         const res = await apiRequest('GET', '/wallet');
-        $('#walletBalance').text(formatMoney(res.data.balance));
+        setWalletBalance(res.data.balance, { highlight: false });
         currentUserId = res.data.user_id ?? null;
         $('#currentUserBadge').text(`ID ${res.data.user_id ?? '-'}`);
         currentWalletId = res.data.id ?? null;
@@ -538,11 +648,19 @@
 
     async function loadTransactions() {
         const query = buildTransactionsQuery();
-        const res = await apiRequest('GET', query);
-        currentTransactions = Array.isArray(res.data) ? res.data : [];
-        transactionsPage.lastFetchedCount = currentTransactions.length;
-        renderTransactions(currentTransactions);
-        updateTransactionsPaginationControls();
+        const previousTransactions = currentTransactions;
+        renderTransactionSkeletonRows();
+        try {
+            const res = await apiRequest('GET', query);
+            currentTransactions = Array.isArray(res.data) ? res.data : [];
+            transactionsPage.lastFetchedCount = currentTransactions.length;
+            renderTransactions(currentTransactions);
+            updateTransactionsPaginationControls();
+        } catch (error) {
+            renderTransactions(previousTransactions);
+            updateTransactionsPaginationControls();
+            throw error;
+        }
     }
 
     async function loadDashboard() {
@@ -627,7 +745,7 @@
                 amount: Number($('#depositAmount').val())
             });
             $('#depositAmount').val('');
-            showAlert('info', 'Deposito enviado. O dashboard sera atualizado automaticamente ao concluir.');
+            showAlert('success', 'Deposito enviado. O dashboard sera atualizado automaticamente ao concluir.');
         } catch (xhr) {
             showAlert('danger', parseError(xhr));
         } finally {
@@ -649,13 +767,36 @@
             currentTransferIdempotencyKey = null;
             $('#transferReceiver').val('');
             $('#transferAmount').val('');
-            showAlert('info', 'Transferencia enviada. O dashboard sera atualizado automaticamente ao concluir.');
+            showAlert('success', 'Transferencia enviada. O dashboard sera atualizado automaticamente ao concluir.');
         } catch (xhr) {
             showAlert('danger', parseError(xhr));
         } finally {
             showLoading(false);
             toggleButtonLoading('#btnTransfer', false);
+            toggleButtonLoading('#btnConfirmTransfer', false);
         }
+    }
+
+    function openTransferConfirm() {
+        hideAlert();
+
+        const receiver = Number($('#transferReceiver').val());
+        const amount = Number($('#transferAmount').val());
+
+        if (!Number.isInteger(receiver) || receiver < 1) {
+            showAlert('danger', 'Informe um usuario destino valido.');
+            return;
+        }
+
+        if (!Number.isFinite(amount) || amount <= 0) {
+            showAlert('danger', 'Informe um valor valido para transferir.');
+            return;
+        }
+
+        $('#confirmTransferReceiver').text(`Usuario ${receiver}`);
+        $('#confirmTransferAmount').text(formatMoney(amount));
+        transferConfirmModal = transferConfirmModal || bootstrap.Modal.getOrCreateInstance(document.getElementById('transferConfirmModal'));
+        transferConfirmModal.show();
     }
 
     async function onReverse(id) {
@@ -663,7 +804,7 @@
         showLoading(true);
         try {
             await apiRequest('POST', `/reverse/${id}`);
-            showAlert('info', `Reversao ${id} enviada. O dashboard sera atualizado automaticamente ao concluir.`);
+            showAlert('success', `Reversao ${id} enviada. O dashboard sera atualizado automaticamente ao concluir.`);
         } catch (xhr) {
             showAlert('danger', parseError(xhr));
         } finally {
@@ -701,7 +842,12 @@
 
         $('#btnLogout').on('click', onLogout);
         $('#btnDeposit').on('click', onDeposit);
-        $('#btnTransfer').on('click', onTransfer);
+        $('#btnTransfer').on('click', openTransferConfirm);
+        $('#btnConfirmTransfer').on('click', function () {
+            toggleButtonLoading('#btnConfirmTransfer', true);
+            transferConfirmModal?.hide();
+            onTransfer();
+        });
         $('#btnRefresh').on('click', function () {
             toggleButtonLoading('#btnRefresh', true);
             loadDashboard().finally(() => toggleButtonLoading('#btnRefresh', false));
@@ -758,7 +904,7 @@
             onReverse(id).finally(() => toggleButtonLoading(button, false));
         });
 
-        showLoading(true);
+        setDashboardSkeleton(true);
         setRealtimeStatus(false);
         try {
             await loadDashboard();
@@ -767,7 +913,7 @@
             clearToken();
             window.location.href = '/auth';
         } finally {
-            showLoading(false);
+            setDashboardSkeleton(false);
         }
     });
 </script>
