@@ -20,6 +20,7 @@ class Transaction extends Model
         'status',
         'idempotency_key',
         'original_transaction_id',
+        'created_at',
     ];
 
     protected $casts = [
