@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\SavingsBox;
 use App\Models\Transaction;
 use App\Models\Wallet;
+use App\ValueObjects\Money;
 
 class DashboardRealtimePayloadBuilder
 {
@@ -21,6 +23,8 @@ class DashboardRealtimePayloadBuilder
      *         status:string,
      *         created_at:?string
      *     }>,
+     *     savings_summary: array{total_saved:string,active_count:int,completed_count:int},
+     *     savings_boxes: array<int, array<string, mixed>>,
      *     occurred_at: string
      * }|null
      */
@@ -60,6 +64,11 @@ class DashboardRealtimePayloadBuilder
             ->values()
             ->all();
 
+        $savingsBoxes = SavingsBox::query()
+            ->where('user_id', $userId)
+            ->latest()
+            ->get();
+
         return [
             'event_type' => $eventType,
             'wallet' => [
@@ -68,6 +77,15 @@ class DashboardRealtimePayloadBuilder
                 'balance' => (string) $wallet->balance,
             ],
             'transactions' => $transactions,
+            'savings_summary' => [
+                'total_saved' => Money::fromCents((int) $savingsBoxes->sum('current_amount_cents'))->toDecimal(),
+                'active_count' => $savingsBoxes->where('status', 'active')->count(),
+                'completed_count' => $savingsBoxes->where('status', 'completed')->count(),
+            ],
+            'savings_boxes' => $savingsBoxes
+                ->map(fn (SavingsBox $savingsBox): array => $savingsBox->toArray())
+                ->values()
+                ->all(),
             'occurred_at' => now()->toAtomString(),
         ];
     }

@@ -16,8 +16,8 @@ return [
     'savings_box.show.success' => 'Caixinha carregada com sucesso.',
     'savings_box.update.success' => 'Caixinha atualizada com sucesso.',
     'savings_box.cancel.success' => 'Caixinha cancelada com sucesso.',
-    'savings_box.deposit.success' => 'Dinheiro guardado com sucesso.',
-    'savings_box.withdraw.success' => 'Dinheiro resgatado com sucesso.',
+    'savings_box.deposit.success' => 'Solicitacao para guardar dinheiro enviada com sucesso.',
+    'savings_box.withdraw.success' => 'Solicitacao de resgate enviada com sucesso.',
     'savings_box.movements.success' => 'Movimentacoes da caixinha carregadas com sucesso.',
 
     // Auth

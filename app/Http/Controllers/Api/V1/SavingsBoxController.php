@@ -58,24 +58,24 @@ class SavingsBoxController extends Controller
 
     public function deposit(SavingsBoxDepositRequest $request, int $savingsBox): JsonResponse
     {
-        $movement = $this->savingsBoxService->deposit(
+        $transaction = $this->savingsBoxService->deposit(
             $request->user(),
             $savingsBox,
             (string) $request->validated('amount')
         );
 
-        return ApiResponse::success($movement, trans('messages.savings_box.deposit.success'));
+        return ApiResponse::success($transaction, trans('messages.savings_box.deposit.success'));
     }
 
     public function withdraw(SavingsBoxWithdrawRequest $request, int $savingsBox): JsonResponse
     {
-        $movement = $this->savingsBoxService->withdraw(
+        $transaction = $this->savingsBoxService->withdraw(
             $request->user(),
             $savingsBox,
             (string) $request->validated('amount')
         );
 
-        return ApiResponse::success($movement, trans('messages.savings_box.withdraw.success'));
+        return ApiResponse::success($transaction, trans('messages.savings_box.withdraw.success'));
     }
 
     public function movements(Request $request, int $savingsBox): JsonResponse
