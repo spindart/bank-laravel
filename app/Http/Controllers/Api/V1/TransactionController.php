@@ -15,15 +15,14 @@ class TransactionController extends Controller
 {
     public function __construct(
         private readonly WalletService $walletService
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'limit' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'offset' => ['sometimes', 'integer', 'min:0'],
-            'type' => ['sometimes', 'string', Rule::in(['deposit', 'transfer', 'reversal'])],
+            'type' => ['sometimes', 'string', Rule::in(['deposit', 'transfer', 'reversal', 'savings_deposit', 'savings_withdraw', 'savings_cancel_refund'])],
             'status' => ['sometimes', 'string', Rule::in(['pending', 'completed', 'reversed'])],
             'date' => ['sometimes', 'date_format:Y-m-d'],
             'timezone' => ['sometimes', 'timezone'],

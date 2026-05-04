@@ -14,7 +14,6 @@ use App\Models\Wallet;
 use App\Repositories\Contracts\TransactionRepositoryInterface;
 use App\Repositories\Contracts\WalletRepositoryInterface;
 use App\ValueObjects\Money;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -23,15 +22,14 @@ class WalletService
     public function __construct(
         private readonly WalletRepositoryInterface $walletRepository,
         private readonly TransactionRepositoryInterface $transactionRepository
-    ) {
-    }
+    ) {}
 
     public function getUserWallet(User $user): Wallet
     {
         $wallet = $this->walletRepository->findByUserId($user->id);
 
         if (! $wallet) {
-            throw new WalletNotFoundException();
+            throw new WalletNotFoundException;
         }
 
         return $wallet;
@@ -42,8 +40,8 @@ class WalletService
         try {
             $wallet = $this->walletRepository->findByUserId($user->id);
 
-            if (!$wallet) {
-                throw new WalletNotFoundException();
+            if (! $wallet) {
+                throw new WalletNotFoundException;
             }
 
             $money = Money::fromDecimal($amount);
@@ -95,8 +93,8 @@ class WalletService
             $senderWallet = $this->walletRepository->findByUserId($senderUser->id);
             $receiverWallet = $this->walletRepository->findByUserId($receiverUserId);
 
-            if (!$senderWallet || !$receiverWallet) {
-                throw new WalletNotFoundException();
+            if (! $senderWallet || ! $receiverWallet) {
+                throw new WalletNotFoundException;
             }
 
             if ($senderUser->id === $receiverUserId) {
@@ -104,7 +102,7 @@ class WalletService
             }
 
             if ($this->walletBalanceCents($senderWallet) < $money->cents()) {
-                throw new InsufficientBalanceException();
+                throw new InsufficientBalanceException;
             }
 
             $transaction = $this->transactionRepository->create([
@@ -147,8 +145,8 @@ class WalletService
         try {
             $targetTransaction = $this->transactionRepository->findById($transactionId);
 
-            if (!$targetTransaction) {
-                throw new TransactionNotReversibleException();
+            if (! $targetTransaction) {
+                throw new TransactionNotReversibleException;
             }
 
             if ($targetTransaction->status === 'reversed') {
@@ -160,7 +158,11 @@ class WalletService
             }
 
             if ($targetTransaction->status !== 'completed') {
-                throw new TransactionNotReversibleException();
+                throw new TransactionNotReversibleException;
+            }
+
+            if (! in_array($targetTransaction->type, ['deposit', 'transfer'], true)) {
+                throw new TransactionNotReversibleException;
             }
 
             $existingReversal = $this->transactionRepository->findReversalByOriginalId($targetTransaction->id);
@@ -173,12 +175,12 @@ class WalletService
             $senderWallet = $targetTransaction->senderWallet;
             $receiverWallet = $targetTransaction->receiverWallet;
 
-            if ($targetTransaction->type === 'deposit' && (!$receiverWallet || $receiverWallet->user_id !== $user->id)) {
-                throw new TransactionNotReversibleException();
+            if ($targetTransaction->type === 'deposit' && (! $receiverWallet || $receiverWallet->user_id !== $user->id)) {
+                throw new TransactionNotReversibleException;
             }
 
-            if ($targetTransaction->type === 'transfer' && (!$senderWallet || $senderWallet->user_id !== $user->id)) {
-                throw new TransactionNotReversibleException();
+            if ($targetTransaction->type === 'transfer' && (! $senderWallet || $senderWallet->user_id !== $user->id)) {
+                throw new TransactionNotReversibleException;
             }
 
             $targetAmount = Money::fromCents($this->transactionAmountCents($targetTransaction));
@@ -215,7 +217,7 @@ class WalletService
 
     private function walletBalanceCents(Wallet $wallet): int
     {
-        if (!is_null($wallet->balance_cents)) {
+        if (! is_null($wallet->balance_cents)) {
             return (int) $wallet->balance_cents;
         }
 
@@ -224,7 +226,7 @@ class WalletService
 
     private function transactionAmountCents(Transaction $transaction): int
     {
-        if (!is_null($transaction->amount_cents)) {
+        if (! is_null($transaction->amount_cents)) {
             return (int) $transaction->amount_cents;
         }
 

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Transaction extends Model
@@ -49,5 +50,10 @@ class Transaction extends Model
     public function reversalTransaction(): HasOne
     {
         return $this->hasOne(self::class, 'original_transaction_id');
+    }
+
+    public function savingsBoxMovements(): HasMany
+    {
+        return $this->hasMany(SavingsBoxMovement::class);
     }
 }
