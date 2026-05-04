@@ -16,8 +16,8 @@ return [
     'savings_box.show.success' => 'Savings box loaded successfully.',
     'savings_box.update.success' => 'Savings box updated successfully.',
     'savings_box.cancel.success' => 'Savings box cancelled successfully.',
-    'savings_box.deposit.success' => 'Money saved successfully.',
-    'savings_box.withdraw.success' => 'Money withdrawn successfully.',
+    'savings_box.deposit.success' => 'Savings deposit request queued successfully.',
+    'savings_box.withdraw.success' => 'Savings withdraw request queued successfully.',
     'savings_box.movements.success' => 'Savings box movements loaded successfully.',
 
     // Auth

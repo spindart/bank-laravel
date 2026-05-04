@@ -865,8 +865,7 @@
 
         await apiRequest(id ? 'PUT' : 'POST', id ? `/savings-boxes/${id}` : '/savings-boxes', payload);
         savingsFormModal?.hide();
-        showAlert('success', id ? 'Caixinha atualizada.' : 'Caixinha criada.');
-        await loadSavingsBoxes();
+        showAlert('success', id ? 'Caixinha atualizada. O dashboard sera atualizado em tempo real.' : 'Caixinha criada. O dashboard sera atualizado em tempo real.');
     }
 
     async function submitSavingsAmount() {
@@ -878,10 +877,7 @@
             amount: Number($('#savingsOperationAmount').val()),
         });
         savingsAmountModal?.hide();
-        showAlert('success', action === 'withdraw' ? 'Resgate concluido.' : 'Dinheiro guardado.');
-        await loadWallet();
-        await loadSavingsBoxes();
-        await loadTransactions();
+        showAlert('success', action === 'withdraw' ? 'Resgate enviado. O dashboard sera atualizado em tempo real.' : 'Solicitacao enviada. O dashboard sera atualizado em tempo real.');
     }
 
     async function cancelSavingsBox() {
@@ -889,10 +885,7 @@
 
         await apiRequest('DELETE', `/savings-boxes/${id}`);
         savingsCancelModal?.hide();
-        showAlert('success', 'Caixinha cancelada e saldo devolvido.');
-        await loadWallet();
-        await loadSavingsBoxes();
-        await loadTransactions();
+        showAlert('success', 'Caixinha cancelada e saldo devolvido. O dashboard sera atualizado em tempo real.');
     }
 
     function upsertTransactions(transactions) {
@@ -1006,6 +999,10 @@
 
         if (transactionsPage.offset === 0 && !hasActiveTransactionsFilters()) {
             upsertTransactions(payload.transactions ?? []);
+        }
+
+        if (Array.isArray(payload.savings_boxes) && payload.savings_summary) {
+            renderSavingsBoxes(payload.savings_boxes, payload.savings_summary);
         }
     }
 

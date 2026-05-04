@@ -7,18 +7,24 @@ use App\Exceptions\Finance\InsufficientBalanceException;
 use App\Exceptions\Finance\SavingsBoxInactiveException;
 use App\Exceptions\Finance\SavingsBoxNotFoundException;
 use App\Exceptions\Finance\WalletNotFoundException;
+use App\Jobs\SavingsBoxCancelJob;
+use App\Jobs\SavingsBoxDepositJob;
+use App\Jobs\SavingsBoxWithdrawJob;
 use App\Models\SavingsBox;
-use App\Models\SavingsBoxMovement;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Support\SafeBroadcast;
 use App\ValueObjects\Money;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class SavingsBoxService
 {
+    public function __construct(
+        private readonly DashboardRealtimePayloadBuilder $payloadBuilder
+    ) {}
+
     public function listForUser(User $user): Collection
     {
         return SavingsBox::query()
@@ -56,7 +62,7 @@ class SavingsBoxService
     {
         $target = Money::fromDecimal((string) $data['target_amount']);
 
-        return SavingsBox::query()->create([
+        $savingsBox = SavingsBox::query()->create([
             'user_id' => $user->id,
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
@@ -68,6 +74,10 @@ class SavingsBoxService
             'status' => 'active',
             'icon' => $data['icon'] ?? null,
         ]);
+
+        $this->broadcastDashboardUpdate($user->id, 'savings_box_created');
+
+        return $savingsBox;
     }
 
     public function update(User $user, int $savingsBoxId, array $data): SavingsBox
@@ -91,12 +101,14 @@ class SavingsBoxService
             'icon' => $data['icon'] ?? null,
         ]);
 
+        $this->broadcastDashboardUpdate($user->id, 'savings_box_updated');
+
         return $savingsBox->refresh();
     }
 
-    public function deposit(User $user, int $savingsBoxId, string $amount): SavingsBoxMovement
+    public function deposit(User $user, int $savingsBoxId, string $amount): Transaction
     {
-        return DB::transaction(function () use ($user, $savingsBoxId, $amount): SavingsBoxMovement {
+        return DB::transaction(function () use ($user, $savingsBoxId, $amount): Transaction {
             $money = Money::fromDecimal($amount);
             $wallet = $this->lockWalletForUser($user->id);
             $savingsBox = $this->lockSavingsBoxForUser($user->id, $savingsBoxId);
@@ -109,38 +121,17 @@ class SavingsBoxService
                 throw new InsufficientBalanceException;
             }
 
-            $beforeCents = (int) $savingsBox->current_amount_cents;
-            $afterCents = $beforeCents + $money->cents();
-            $newWalletBalanceCents = $walletBalanceCents - $money->cents();
-            $transaction = $this->createCompletedTransaction('savings_deposit', $money, $wallet->id);
+            $transaction = $this->createPendingTransaction('savings_deposit', $money, $wallet->id);
 
-            $wallet->update([
-                'balance_cents' => $newWalletBalanceCents,
-                'balance' => Money::fromCents($newWalletBalanceCents)->toDecimal(),
-            ]);
+            SavingsBoxDepositJob::dispatch($transaction->id, $user->id, $savingsBox->id, $money->cents());
 
-            $savingsBox->update([
-                'current_amount_cents' => $afterCents,
-                'current_amount' => Money::fromCents($afterCents)->toDecimal(),
-                'status' => $this->resolveStatus($afterCents, (int) $savingsBox->target_amount_cents, $savingsBox->status),
-            ]);
-
-            $movement = $this->createMovement($savingsBox, $user, $transaction, 'deposit', $money, $beforeCents, $afterCents);
-
-            Log::info('savings_box.deposit_completed', [
-                'user_id' => $user->id,
-                'savings_box_id' => $savingsBox->id,
-                'transaction_id' => $transaction->id,
-                'amount_cents' => $money->cents(),
-            ]);
-
-            return $movement->load('savingsBox', 'transaction');
+            return $transaction;
         });
     }
 
-    public function withdraw(User $user, int $savingsBoxId, string $amount): SavingsBoxMovement
+    public function withdraw(User $user, int $savingsBoxId, string $amount): Transaction
     {
-        return DB::transaction(function () use ($user, $savingsBoxId, $amount): SavingsBoxMovement {
+        return DB::transaction(function () use ($user, $savingsBoxId, $amount): Transaction {
             $money = Money::fromDecimal($amount);
             $wallet = $this->lockWalletForUser($user->id);
             $savingsBox = $this->lockSavingsBoxForUser($user->id, $savingsBoxId);
@@ -153,31 +144,11 @@ class SavingsBoxService
                 throw new FinanceException(trans('messages.error.savings_box_insufficient_balance'), 422);
             }
 
-            $afterCents = $beforeCents - $money->cents();
-            $newWalletBalanceCents = $this->walletBalanceCents($wallet) + $money->cents();
-            $transaction = $this->createCompletedTransaction('savings_withdraw', $money, $wallet->id);
+            $transaction = $this->createPendingTransaction('savings_withdraw', $money, $wallet->id);
 
-            $wallet->update([
-                'balance_cents' => $newWalletBalanceCents,
-                'balance' => Money::fromCents($newWalletBalanceCents)->toDecimal(),
-            ]);
+            SavingsBoxWithdrawJob::dispatch($transaction->id, $user->id, $savingsBox->id, $money->cents());
 
-            $savingsBox->update([
-                'current_amount_cents' => $afterCents,
-                'current_amount' => Money::fromCents($afterCents)->toDecimal(),
-                'status' => $afterCents >= (int) $savingsBox->target_amount_cents ? 'completed' : 'active',
-            ]);
-
-            $movement = $this->createMovement($savingsBox, $user, $transaction, 'withdraw', $money, $beforeCents, $afterCents);
-
-            Log::info('savings_box.withdraw_completed', [
-                'user_id' => $user->id,
-                'savings_box_id' => $savingsBox->id,
-                'transaction_id' => $transaction->id,
-                'amount_cents' => $money->cents(),
-            ]);
-
-            return $movement->load('savingsBox', 'transaction');
+            return $transaction;
         });
     }
 
@@ -192,33 +163,16 @@ class SavingsBoxService
             }
 
             $beforeCents = (int) $savingsBox->current_amount_cents;
+            $transaction = null;
 
             if ($beforeCents > 0) {
                 $money = Money::fromCents($beforeCents);
-                $newWalletBalanceCents = $this->walletBalanceCents($wallet) + $beforeCents;
-                $transaction = $this->createCompletedTransaction('savings_cancel_refund', $money, $wallet->id);
-
-                $wallet->update([
-                    'balance_cents' => $newWalletBalanceCents,
-                    'balance' => Money::fromCents($newWalletBalanceCents)->toDecimal(),
-                ]);
-
-                $this->createMovement($savingsBox, $user, $transaction, 'cancel_refund', $money, $beforeCents, 0);
+                $transaction = $this->createPendingTransaction('savings_cancel_refund', $money, $wallet->id);
             }
 
-            $savingsBox->update([
-                'current_amount_cents' => 0,
-                'current_amount' => '0.00',
-                'status' => 'cancelled',
-            ]);
+            SavingsBoxCancelJob::dispatch($transaction?->id, $user->id, $savingsBox->id);
 
-            Log::info('savings_box.cancelled', [
-                'user_id' => $user->id,
-                'savings_box_id' => $savingsBox->id,
-                'refunded_cents' => $beforeCents,
-            ]);
-
-            return $savingsBox->refresh();
+            return $savingsBox;
         });
     }
 
@@ -255,7 +209,7 @@ class SavingsBoxService
         }
     }
 
-    private function createCompletedTransaction(string $type, Money $money, int $walletId): Transaction
+    private function createPendingTransaction(string $type, Money $money, int $walletId): Transaction
     {
         return Transaction::query()->create([
             'type' => $type,
@@ -263,31 +217,8 @@ class SavingsBoxService
             'amount_cents' => $money->cents(),
             'sender_wallet_id' => $walletId,
             'receiver_wallet_id' => $walletId,
-            'status' => 'completed',
+            'status' => 'pending',
             'original_transaction_id' => null,
-        ]);
-    }
-
-    private function createMovement(
-        SavingsBox $savingsBox,
-        User $user,
-        Transaction $transaction,
-        string $type,
-        Money $money,
-        int $beforeCents,
-        int $afterCents
-    ): SavingsBoxMovement {
-        return SavingsBoxMovement::query()->create([
-            'savings_box_id' => $savingsBox->id,
-            'user_id' => $user->id,
-            'transaction_id' => $transaction->id,
-            'type' => $type,
-            'amount' => $money->toDecimal(),
-            'amount_cents' => $money->cents(),
-            'balance_before' => Money::fromCents($beforeCents)->toDecimal(),
-            'balance_before_cents' => $beforeCents,
-            'balance_after' => Money::fromCents($afterCents)->toDecimal(),
-            'balance_after_cents' => $afterCents,
         ]);
     }
 
@@ -307,5 +238,17 @@ class SavingsBoxService
         }
 
         return Money::fromDecimal((string) $wallet->balance)->cents();
+    }
+
+    /**
+     * @param  array<int>  $transactionIds
+     */
+    private function broadcastDashboardUpdate(int $userId, string $eventType, array $transactionIds = []): void
+    {
+        $payload = $this->payloadBuilder->buildForUser($userId, $eventType, $transactionIds);
+
+        if ($payload) {
+            SafeBroadcast::walletDashboardUpdated($userId, $payload);
+        }
     }
 }

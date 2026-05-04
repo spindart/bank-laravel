@@ -2,12 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Events\WalletDashboardUpdated;
+use App\Jobs\SavingsBoxDepositJob;
 use App\Models\SavingsBox;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Wallet;
 use App\ValueObjects\Money;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -79,9 +83,8 @@ class SavingsBoxApiTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('data.type', 'deposit')
-            ->assertJsonPath('data.balance_before', '0.00')
-            ->assertJsonPath('data.balance_after', '40.00');
+            ->assertJsonPath('data.type', 'savings_deposit')
+            ->assertJsonPath('data.status', 'pending');
 
         $wallet->refresh();
         $box->refresh();
@@ -100,6 +103,49 @@ class SavingsBoxApiTest extends TestCase
             'type' => 'deposit',
             'amount_cents' => 4000,
         ]);
+    }
+
+    public function test_savings_box_deposit_is_queued_as_job(): void
+    {
+        [$user] = $this->createUserWithWallet(250);
+        $box = SavingsBox::query()->create($this->boxPayload($user->id, targetCents: 10000));
+        Sanctum::actingAs($user);
+        Queue::fake();
+
+        $this->postJson("/api/v1/savings-boxes/{$box->id}/deposit", [
+            'amount' => '40.00',
+        ])->assertOk();
+
+        Queue::assertPushed(SavingsBoxDepositJob::class);
+        $this->assertDatabaseHas('transactions', [
+            'type' => 'savings_deposit',
+            'amount' => '40.00',
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_savings_box_deposit_broadcasts_dashboard_payload(): void
+    {
+        [$user] = $this->createUserWithWallet(250);
+        $box = SavingsBox::query()->create($this->boxPayload($user->id, targetCents: 10000));
+        Sanctum::actingAs($user);
+        Event::fake([WalletDashboardUpdated::class]);
+
+        $this->postJson("/api/v1/savings-boxes/{$box->id}/deposit", [
+            'amount' => '40.00',
+        ])->assertOk();
+
+        Event::assertDispatched(WalletDashboardUpdated::class, function (WalletDashboardUpdated $event) use ($user): bool {
+            $payload = $event->payload();
+
+            return $event->userId() === $user->id
+                && ($payload['event_type'] ?? null) === 'savings_box_deposit_completed'
+                && ($payload['wallet']['balance'] ?? null) === '210.00'
+                && ($payload['savings_summary']['total_saved'] ?? null) === '40.00'
+                && count($payload['savings_boxes'] ?? []) === 1
+                && ($payload['savings_boxes'][0]['current_amount'] ?? null) === '40.00'
+                && ($payload['transactions'][0]['type'] ?? null) === 'savings_deposit';
+        });
     }
 
     public function test_user_cannot_deposit_with_insufficient_balance(): void
@@ -164,9 +210,7 @@ class SavingsBoxApiTest extends TestCase
         Sanctum::actingAs($user);
 
         $this->deleteJson("/api/v1/savings-boxes/{$box->id}")
-            ->assertOk()
-            ->assertJsonPath('data.status', 'cancelled')
-            ->assertJsonPath('data.current_amount', '0.00');
+            ->assertOk();
 
         $wallet->refresh();
 
