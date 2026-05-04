@@ -14,7 +14,7 @@ return new class extends Migration
     {
         Schema::create('transactions', function (Blueprint $table): void {
             $table->id();
-            $table->enum('type', ['deposit', 'transfer', 'reversal']);
+            $table->enum('type', ['deposit', 'transfer', 'reversal', 'savings_deposit', 'savings_withdraw', 'savings_cancel_refund']);
             $table->decimal('amount', 15, 2);
             $table->foreignId('sender_wallet_id')->nullable()->constrained('wallets');
             $table->foreignId('receiver_wallet_id')->nullable()->constrained('wallets');
@@ -33,7 +33,8 @@ return new class extends Migration
             DB::statement("ALTER TABLE transactions ADD CONSTRAINT chk_transactions_type_wallets CHECK (
                 (type = 'deposit' AND sender_wallet_id IS NULL AND receiver_wallet_id IS NOT NULL AND original_transaction_id IS NULL) OR
                 (type = 'transfer' AND sender_wallet_id IS NOT NULL AND receiver_wallet_id IS NOT NULL AND sender_wallet_id <> receiver_wallet_id AND original_transaction_id IS NULL) OR
-                (type = 'reversal' AND original_transaction_id IS NOT NULL AND (sender_wallet_id IS NOT NULL OR receiver_wallet_id IS NOT NULL))
+                (type = 'reversal' AND original_transaction_id IS NOT NULL AND (sender_wallet_id IS NOT NULL OR receiver_wallet_id IS NOT NULL)) OR
+                (type IN ('savings_deposit', 'savings_withdraw', 'savings_cancel_refund') AND sender_wallet_id IS NOT NULL AND receiver_wallet_id IS NOT NULL AND sender_wallet_id = receiver_wallet_id AND original_transaction_id IS NULL)
             )");
         }
     }

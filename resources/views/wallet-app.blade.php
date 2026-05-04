@@ -26,6 +26,10 @@
                 <i class="bi bi-house-door"></i>
                 <span>Dashboard</span>
             </a>
+            <a href="#savingsSection" class="sidebar-link">
+                <i class="bi bi-piggy-bank"></i>
+                <span>Caixinhas</span>
+            </a>
             <a href="#historySection" class="sidebar-link">
                 <i class="bi bi-clock-history"></i>
                 <span>Transacoes</span>
@@ -128,6 +132,48 @@
                 </div>
             </div>
 
+            <section id="savingsSection" class="card dashboard-card savings-card mb-4">
+                <div class="card-body p-4">
+                    <div class="savings-header">
+                        <div class="history-title-wrap">
+                            <div class="history-title-icon savings-title-icon">
+                                <i class="bi bi-piggy-bank"></i>
+                            </div>
+                            <div class="history-copy">
+                                <h2 class="h4 mb-1">Caixinhas</h2>
+                                <p class="text-muted mb-0">Separe seu saldo disponivel por objetivos</p>
+                            </div>
+                        </div>
+                        <button id="btnOpenSavingsCreate" type="button" class="btn btn-primary savings-new-btn" data-original-label="Nova caixinha">
+                            <i class="bi bi-plus-lg me-2"></i>Nova caixinha
+                        </button>
+                    </div>
+
+                    <div class="savings-summary-grid">
+                        <div class="savings-summary-item">
+                            <span>Total guardado</span>
+                            <strong id="savingsTotalSaved">R$ 0,00</strong>
+                        </div>
+                        <div class="savings-summary-item">
+                            <span>Ativas</span>
+                            <strong id="savingsActiveCount">0</strong>
+                        </div>
+                        <div class="savings-summary-item">
+                            <span>Concluidas</span>
+                            <strong id="savingsCompletedCount">0</strong>
+                        </div>
+                    </div>
+
+                    <div id="savingsEmptyState" class="savings-empty d-none">
+                        <div class="savings-empty-icon"><i class="bi bi-piggy-bank"></i></div>
+                        <h3>Nenhuma caixinha ainda</h3>
+                        <p>Crie um objetivo para separar parte do saldo sem tirar dinheiro da sua carteira.</p>
+                    </div>
+
+                    <div id="savingsGrid" class="savings-grid"></div>
+                </div>
+            </section>
+
             <section id="historySection" class="card dashboard-card history-card">
                 <div class="card-body p-4">
                     <div class="history-header">
@@ -150,6 +196,9 @@
                                 <option value="deposit">Deposito</option>
                                 <option value="transfer">Transferencia</option>
                                 <option value="reversal">Reversao</option>
+                                <option value="savings_deposit">Guardar em caixinha</option>
+                                <option value="savings_withdraw">Resgate de caixinha</option>
+                                <option value="savings_cancel_refund">Cancelamento de caixinha</option>
                             </select>
                             <select id="txFilterStatus" class="form-select form-select-sm history-select" style="width: auto;">
                                 <option value="">Status: todos</option>
@@ -254,6 +303,125 @@
     </div>
 </div>
 
+<div class="modal fade" id="savingsFormModal" tabindex="-1" aria-labelledby="savingsFormTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content savings-modal">
+            <form id="savingsForm">
+                <div class="modal-header">
+                    <h2 id="savingsFormTitle" class="modal-title h5">Nova caixinha</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <input id="savingsFormId" type="hidden">
+                    <div class="mb-3">
+                        <label for="savingsName" class="form-label small">Nome</label>
+                        <input id="savingsName" type="text" class="form-control form-control-lg" maxlength="80" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="savingsDescription" class="form-label small">Descricao</label>
+                        <textarea id="savingsDescription" class="form-control" rows="3" maxlength="500"></textarea>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="savingsTargetAmount" class="form-label small">Meta</label>
+                            <div class="input-group">
+                                <span class="input-group-text">R$</span>
+                                <input id="savingsTargetAmount" type="number" step="0.01" min="0.01" class="form-control form-control-lg" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="savingsTargetDate" class="form-label small">Data alvo</label>
+                            <input id="savingsTargetDate" type="date" class="form-control form-control-lg">
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label for="savingsIcon" class="form-label small">Icone</label>
+                        <select id="savingsIcon" class="form-select form-select-lg">
+                            <option value="bi-piggy-bank">Cofrinho</option>
+                            <option value="bi-shield-check">Reserva</option>
+                            <option value="bi-laptop">Notebook</option>
+                            <option value="bi-airplane">Viagem</option>
+                            <option value="bi-receipt">Impostos</option>
+                            <option value="bi-star">Meta pessoal</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button id="btnSaveSavingsBox" type="submit" class="btn btn-primary" data-original-label="Salvar">
+                        <i class="bi bi-check-lg me-2"></i>Salvar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="savingsAmountModal" tabindex="-1" aria-labelledby="savingsAmountTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content savings-modal">
+            <form id="savingsAmountForm">
+                <div class="modal-header">
+                    <h2 id="savingsAmountTitle" class="modal-title h5">Guardar dinheiro</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <input id="savingsAmountBoxId" type="hidden">
+                    <input id="savingsAmountAction" type="hidden">
+                    <div class="savings-operation-summary">
+                        <span id="savingsAmountBoxName">Caixinha</span>
+                        <strong id="savingsAmountBoxBalance">R$ 0,00 guardados</strong>
+                    </div>
+                    <label for="savingsOperationAmount" class="form-label small">Valor</label>
+                    <div class="input-group">
+                        <span class="input-group-text">R$</span>
+                        <input id="savingsOperationAmount" type="number" step="0.01" min="0.01" class="form-control form-control-lg" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button id="btnConfirmSavingsAmount" type="submit" class="btn btn-primary" data-original-label="Confirmar">
+                        <i class="bi bi-check-lg me-2"></i>Confirmar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="savingsDetailsModal" tabindex="-1" aria-labelledby="savingsDetailsTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content savings-modal">
+            <div class="modal-header">
+                <h2 id="savingsDetailsTitle" class="modal-title h5">Detalhes da caixinha</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div id="savingsDetailsBody" class="modal-body"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="savingsCancelModal" tabindex="-1" aria-labelledby="savingsCancelTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content savings-modal">
+            <div class="modal-header">
+                <h2 id="savingsCancelTitle" class="modal-title h5">Cancelar caixinha</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <input id="savingsCancelBoxId" type="hidden">
+                <p class="mb-0">O saldo guardado sera devolvido automaticamente para o saldo disponivel.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Voltar</button>
+                <button id="btnConfirmSavingsCancel" type="button" class="btn btn-outline-danger" data-original-label="Cancelar caixinha">
+                    <i class="bi bi-archive me-2"></i>Cancelar caixinha
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="globalSpinner" class="position-fixed top-0 start-0 w-100 h-100 d-none align-items-center justify-content-center" style="background: rgba(0,0,0,.25); z-index: 1055;">
     <div class="spinner-border text-light" role="status"></div>
 </div>
@@ -277,9 +445,14 @@
     let currentUserId = null;
     let currentTransferIdempotencyKey = null;
     let currentTransactions = [];
+    let currentSavingsBoxes = [];
     let echoInstance = null;
     let lastWalletBalance = null;
     let transferConfirmModal = null;
+    let savingsFormModal = null;
+    let savingsAmountModal = null;
+    let savingsDetailsModal = null;
+    let savingsCancelModal = null;
     let feedbackToast = null;
     const transactionsPage = {
         limit: 20,
@@ -421,7 +594,10 @@
         const mapping = {
             deposit: { label: 'Deposito', class: 'badge-type-deposit', icon: 'bi-arrow-down' },
             transfer: { label: 'Transferencia', class: 'badge-type-transfer', icon: 'bi-arrow-up-right' },
-            reversal: { label: 'Reversao', class: 'badge-type-reversal', icon: 'bi-arrow-counterclockwise' }
+            reversal: { label: 'Reversao', class: 'badge-type-reversal', icon: 'bi-arrow-counterclockwise' },
+            savings_deposit: { label: 'Caixinha', class: 'badge-type-savings-deposit', icon: 'bi-piggy-bank' },
+            savings_withdraw: { label: 'Resgate', class: 'badge-type-savings-withdraw', icon: 'bi-arrow-down-up' },
+            savings_cancel_refund: { label: 'Cancelamento', class: 'badge-type-savings-cancel', icon: 'bi-archive' }
         };
 
         const item = mapping[type] || { label: type, class: 'badge bg-secondary', icon: 'bi-three-dots' };
@@ -527,6 +703,198 @@
         });
     }
 
+    function getSavingsStatusBadge(status) {
+        const mapping = {
+            active: { label: 'Ativa', class: 'savings-status-active' },
+            completed: { label: 'Concluida', class: 'savings-status-completed' },
+            cancelled: { label: 'Cancelada', class: 'savings-status-cancelled' },
+            archived: { label: 'Arquivada', class: 'savings-status-cancelled' },
+        };
+        const item = mapping[status] || { label: status, class: 'savings-status-cancelled' };
+
+        return `<span class="savings-status ${item.class}">${item.label}</span>`;
+    }
+
+    function formatDate(value) {
+        if (!value) {
+            return '-';
+        }
+
+        const date = new Date(`${value}T00:00:00`);
+
+        if (Number.isNaN(date.getTime())) {
+            return value;
+        }
+
+        return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+    }
+
+    function renderSavingsBoxes(boxes, summary = {}) {
+        currentSavingsBoxes = Array.isArray(boxes) ? boxes : [];
+        $('#savingsTotalSaved').text(formatMoney(summary.total_saved || 0));
+        $('#savingsActiveCount').text(summary.active_count || 0);
+        $('#savingsCompletedCount').text(summary.completed_count || 0);
+        $('#savingsEmptyState').toggleClass('d-none', currentSavingsBoxes.length > 0);
+
+        const grid = $('#savingsGrid');
+        grid.empty();
+
+        currentSavingsBoxes.forEach((box) => {
+            const progress = Math.min(100, Number(box.progress_percent || 0));
+            const active = ['active', 'completed'].includes(box.status);
+            const completedMessage = box.status === 'completed'
+                ? '<div class="savings-completed-message"><i class="bi bi-stars me-1"></i>Meta concluida. Parabens!</div>'
+                : '';
+
+            grid.append(`
+                <article class="savings-box-card" data-id="${box.id}">
+                    <div class="savings-box-top">
+                        <div class="savings-box-icon"><i class="bi ${box.icon || 'bi-piggy-bank'}"></i></div>
+                        ${getSavingsStatusBadge(box.status)}
+                    </div>
+                    <h3>${box.name}</h3>
+                    <p>${box.description || 'Sem descricao.'}</p>
+                    ${completedMessage}
+                    <div class="savings-values">
+                        <div><span>Guardado</span><strong>${formatMoney(box.current_amount)}</strong></div>
+                        <div><span>Meta</span><strong>${formatMoney(box.target_amount)}</strong></div>
+                    </div>
+                    <div class="savings-progress-wrap">
+                        <div class="savings-progress-meta">
+                            <span>${progress.toFixed(0)}%</span>
+                            <span>Restam ${formatMoney(box.remaining_amount)}</span>
+                        </div>
+                        <div class="progress savings-progress" role="progressbar" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100">
+                            <div class="progress-bar" style="width: ${progress}%"></div>
+                        </div>
+                    </div>
+                    <div class="savings-target-date"><i class="bi bi-calendar-event me-1"></i>Data alvo: ${formatDate(box.target_date)}</div>
+                    <div class="savings-actions">
+                        <button class="btn btn-sm btn-primary btn-savings-deposit" ${active ? '' : 'disabled'} data-id="${box.id}" data-original-label="Guardar"><i class="bi bi-plus-lg me-1"></i>Guardar</button>
+                        <button class="btn btn-sm btn-outline-success btn-savings-withdraw" ${active ? '' : 'disabled'} data-id="${box.id}" data-original-label="Resgatar"><i class="bi bi-arrow-down-up me-1"></i>Resgatar</button>
+                        <button class="btn btn-sm btn-outline-secondary btn-savings-details" data-id="${box.id}" data-original-label="Detalhes"><i class="bi bi-eye me-1"></i>Detalhes</button>
+                        <button class="btn btn-sm btn-outline-secondary btn-savings-edit" ${active ? '' : 'disabled'} data-id="${box.id}" data-original-label="Editar"><i class="bi bi-pencil me-1"></i>Editar</button>
+                        <button class="btn btn-sm btn-outline-danger btn-savings-cancel" ${active ? '' : 'disabled'} data-id="${box.id}" data-original-label="Cancelar"><i class="bi bi-archive me-1"></i>Cancelar</button>
+                    </div>
+                </article>
+            `);
+        });
+    }
+
+    async function loadSavingsBoxes() {
+        const res = await apiRequest('GET', '/savings-boxes');
+        renderSavingsBoxes(res.data.items || [], res.data.summary || {});
+    }
+
+    function findSavingsBox(id) {
+        return currentSavingsBoxes.find((box) => Number(box.id) === Number(id));
+    }
+
+    function openSavingsForm(box = null) {
+        $('#savingsFormTitle').text(box ? 'Editar caixinha' : 'Nova caixinha');
+        $('#savingsFormId').val(box?.id || '');
+        $('#savingsName').val(box?.name || '');
+        $('#savingsDescription').val(box?.description || '');
+        $('#savingsTargetAmount').val(box?.target_amount || '');
+        $('#savingsTargetDate').val(box?.target_date || '');
+        $('#savingsIcon').val(box?.icon || 'bi-piggy-bank');
+        savingsFormModal = savingsFormModal || bootstrap.Modal.getOrCreateInstance(document.getElementById('savingsFormModal'));
+        savingsFormModal.show();
+    }
+
+    function openSavingsAmount(action, box) {
+        $('#savingsAmountAction').val(action);
+        $('#savingsAmountBoxId').val(box.id);
+        $('#savingsOperationAmount').val('');
+        $('#savingsAmountTitle').text(action === 'deposit' ? 'Guardar dinheiro' : 'Resgatar dinheiro');
+        $('#savingsAmountBoxName').text(box.name);
+        $('#savingsAmountBoxBalance').text(`${formatMoney(box.current_amount)} guardados`);
+        savingsAmountModal = savingsAmountModal || bootstrap.Modal.getOrCreateInstance(document.getElementById('savingsAmountModal'));
+        savingsAmountModal.show();
+    }
+
+    async function openSavingsDetails(id) {
+        const res = await apiRequest('GET', `/savings-boxes/${id}`);
+        const box = res.data;
+        const movements = Array.isArray(box.movements) ? box.movements : [];
+        const rows = movements.length
+            ? movements.map((movement) => `
+                <tr>
+                    <td>${movement.type}</td>
+                    <td class="text-end">${formatMoney(movement.amount)}</td>
+                    <td class="text-end">${formatMoney(movement.balance_before)}</td>
+                    <td class="text-end">${formatMoney(movement.balance_after)}</td>
+                    <td>${formatDateTime(movement.created_at)}</td>
+                </tr>
+            `).join('')
+            : '<tr><td colspan="5" class="text-center text-muted py-4">Sem movimentacoes.</td></tr>';
+
+        $('#savingsDetailsTitle').text(box.name);
+        $('#savingsDetailsBody').html(`
+            <div class="savings-details-summary">
+                <div><span>Guardado</span><strong>${formatMoney(box.current_amount)}</strong></div>
+                <div><span>Meta</span><strong>${formatMoney(box.target_amount)}</strong></div>
+                <div><span>Restante</span><strong>${formatMoney(box.remaining_amount)}</strong></div>
+                <div><span>Status</span><strong>${box.status}</strong></div>
+                <div><span>Criada em</span><strong>${formatDateTime(box.created_at)}</strong></div>
+                <div><span>Atualizada em</span><strong>${formatDateTime(box.updated_at)}</strong></div>
+            </div>
+            <div class="progress savings-progress my-3">
+                <div class="progress-bar" style="width: ${Math.min(100, Number(box.progress_percent || 0))}%"></div>
+            </div>
+            <div class="table-responsive history-table-wrap mt-3">
+                <table class="table table-hover table-borderless align-middle mb-0 history-table">
+                    <thead><tr><th>Tipo</th><th class="text-end">Valor</th><th class="text-end">Antes</th><th class="text-end">Depois</th><th>Criada em</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+        `);
+        savingsDetailsModal = savingsDetailsModal || bootstrap.Modal.getOrCreateInstance(document.getElementById('savingsDetailsModal'));
+        savingsDetailsModal.show();
+    }
+
+    async function saveSavingsBox() {
+        const id = $('#savingsFormId').val();
+        const payload = {
+            name: $('#savingsName').val(),
+            description: $('#savingsDescription').val() || null,
+            target_amount: Number($('#savingsTargetAmount').val()),
+            target_date: $('#savingsTargetDate').val() || null,
+            icon: $('#savingsIcon').val() || null,
+        };
+
+        await apiRequest(id ? 'PUT' : 'POST', id ? `/savings-boxes/${id}` : '/savings-boxes', payload);
+        savingsFormModal?.hide();
+        showAlert('success', id ? 'Caixinha atualizada.' : 'Caixinha criada.');
+        await loadSavingsBoxes();
+    }
+
+    async function submitSavingsAmount() {
+        const id = $('#savingsAmountBoxId').val();
+        const action = $('#savingsAmountAction').val();
+        const endpoint = action === 'withdraw' ? 'withdraw' : 'deposit';
+
+        await apiRequest('POST', `/savings-boxes/${id}/${endpoint}`, {
+            amount: Number($('#savingsOperationAmount').val()),
+        });
+        savingsAmountModal?.hide();
+        showAlert('success', action === 'withdraw' ? 'Resgate concluido.' : 'Dinheiro guardado.');
+        await loadWallet();
+        await loadSavingsBoxes();
+        await loadTransactions();
+    }
+
+    async function cancelSavingsBox() {
+        const id = $('#savingsCancelBoxId').val();
+
+        await apiRequest('DELETE', `/savings-boxes/${id}`);
+        savingsCancelModal?.hide();
+        showAlert('success', 'Caixinha cancelada e saldo devolvido.');
+        await loadWallet();
+        await loadSavingsBoxes();
+        await loadTransactions();
+    }
+
     function upsertTransactions(transactions) {
         if (!Array.isArray(transactions) || !transactions.length) {
             return;
@@ -567,6 +935,9 @@
             deposit: 'Deposito',
             transfer: 'Transferencia',
             reversal: 'Reversao',
+            savings_deposit: 'Guardar em caixinha',
+            savings_withdraw: 'Resgate de caixinha',
+            savings_cancel_refund: 'Cancelamento de caixinha',
         };
         const statusLabels = {
             pending: 'Pendente',
@@ -665,6 +1036,7 @@
 
     async function loadDashboard() {
         await loadWallet();
+        await loadSavingsBoxes();
         await loadTransactions();
     }
 
@@ -843,6 +1215,51 @@
         $('#btnLogout').on('click', onLogout);
         $('#btnDeposit').on('click', onDeposit);
         $('#btnTransfer').on('click', openTransferConfirm);
+        $('#btnOpenSavingsCreate').on('click', () => openSavingsForm());
+        $('#savingsForm').on('submit', function (event) {
+            event.preventDefault();
+            toggleButtonLoading('#btnSaveSavingsBox', true);
+            saveSavingsBox()
+                .catch((xhr) => showAlert('danger', parseError(xhr)))
+                .finally(() => toggleButtonLoading('#btnSaveSavingsBox', false));
+        });
+        $('#savingsAmountForm').on('submit', function (event) {
+            event.preventDefault();
+            toggleButtonLoading('#btnConfirmSavingsAmount', true);
+            submitSavingsAmount()
+                .catch((xhr) => showAlert('danger', parseError(xhr)))
+                .finally(() => toggleButtonLoading('#btnConfirmSavingsAmount', false));
+        });
+        $('#btnConfirmSavingsCancel').on('click', function () {
+            toggleButtonLoading('#btnConfirmSavingsCancel', true);
+            cancelSavingsBox()
+                .catch((xhr) => showAlert('danger', parseError(xhr)))
+                .finally(() => toggleButtonLoading('#btnConfirmSavingsCancel', false));
+        });
+        $(document).on('click', '.btn-savings-deposit', function () {
+            const box = findSavingsBox($(this).data('id'));
+            if (box) openSavingsAmount('deposit', box);
+        });
+        $(document).on('click', '.btn-savings-withdraw', function () {
+            const box = findSavingsBox($(this).data('id'));
+            if (box) openSavingsAmount('withdraw', box);
+        });
+        $(document).on('click', '.btn-savings-edit', function () {
+            const box = findSavingsBox($(this).data('id'));
+            if (box) openSavingsForm(box);
+        });
+        $(document).on('click', '.btn-savings-details', function () {
+            const button = $(this);
+            toggleButtonLoading(button, true);
+            openSavingsDetails(button.data('id'))
+                .catch((xhr) => showAlert('danger', parseError(xhr)))
+                .finally(() => toggleButtonLoading(button, false));
+        });
+        $(document).on('click', '.btn-savings-cancel', function () {
+            $('#savingsCancelBoxId').val($(this).data('id'));
+            savingsCancelModal = savingsCancelModal || bootstrap.Modal.getOrCreateInstance(document.getElementById('savingsCancelModal'));
+            savingsCancelModal.show();
+        });
         $('#btnConfirmTransfer').on('click', function () {
             toggleButtonLoading('#btnConfirmTransfer', true);
             transferConfirmModal?.hide();
